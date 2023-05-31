@@ -35,7 +35,12 @@ gss_tbl %>%
 
 #Edited to add Sys.time() to time, added new col to results
 
-ml_function <- function(dat = gss_tbl, ml_model = "lm", no_folds = 10) { 
+ml_function <- function( ml_model =  c("lm","glmnet","ranger","xgbTree")) { 
+  
+  dat <- gss_tbl
+  no_folds <- 10
+  
+  ml_model <- match.arg(ml_model)
   
 start <- Sys.time()
   
@@ -70,9 +75,10 @@ end <- Sys.time()
   #   model_name = ml_model,
   #   cv_rsq = max( model[["results"]][["Rsquared"]]),
   #   ho_rsq = cor(predicted, test_dat$workhours),
-  #   no_seconds_og = as.numeric(end)
+  #   no_seconds_og = difftime(end,start,units="secs")
   # )
   
+
   results <- list(
     "model_name" = ml_model,
     "cv_rsq" = max( model[["results"]][["Rsquared"]]),
@@ -87,30 +93,40 @@ end <- Sys.time()
 #Same as project 10 but pre-allocated length of ml_results_list
 #also changed from for loop to mapply
 
-ml_methods <- c("lm","glmnet","ranger")  #add xgbTree back
-#ml_results_list <- vector(mode="list", length = 4)
-
-#run normal
+#convert to list for easier use in sapply
+# ml_methods <- c("lm","glmnet","ranger","xgbTree")  #add xgbTree back
+# ml_results_list <- vector(mode="list", length = 4)
+# 
+# #run normal
 # for(i in 1:length(ml_methods)) {
 #   ml_results_list[[i]] <- ml_function(ml_model = ml_methods[i])
 # }
+# 
+# 
+# ##mapply returns list of 16 like 4x4 matrix
+# ml_results_norm <- mapply(ml_function, ml_model=ml_methods)
 
-
-##mapply returns list of 16 like 4x4 matrix
-ml_results_list <- mapply(ml_function, ml_model=ml_methods)
 
 ##what does mapply return if i change function to return vector and not tibble?
 #same thing
 
+#only keep mapply if faster than for loop
+#mapply times: 5.99367308616638 13.2867469787598 104.833606004715 410.396929979324
+#for loop times: 6.157455  17.87279 154.4489  333.5646
+#sapply times: 
 
+#would be best to use sapply then easy convert to parSapply
+ml_methods <- c("lm","glmnet","ranger","xgbTree") 
+ml_results_norm2 <- sapply(ml_methods, function(x) do.call(ml_function, as.list(x)))
 
 #run parallelized
-#ml_results_list2 <- vector(mode="list", length = 4)
 
-
-# ml_results_list2 <- mcmapply(ml_function, ml_model=ml_methods,
+#PROBLEM - mcmapply only for non Windows
+#no parXX version of mapply
+# ml_results_prll <- parSapply(ml_function, ml_model=ml_methods,
 #                              mc.preschedule = FALSE,
 #                              )
+
 
 
 # cl <- makeCluster(detectCores()-1)
