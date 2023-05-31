@@ -57,18 +57,17 @@ myControl <- trainControl(
 )
 
 
-ml_function <- function(train_data=train_dat, test_data=test_dat, 
-                        ml_model =  c("lm","glmnet","ranger","xgbTree"), parallelize=FALSE) { 
+ml_function <- function(train_dat=train_dat, test_dat=test_dat, ml_model =  c("lm","glmnet","ranger","xgbTree"), parallelize=FALSE) { 
   
-start <- Sys.time() 
+  start <- Sys.time() 
   
   if(parallelize == TRUE) {
     local_cluster <- makeCluster(detectCores()-1)
     registerDoParallel(local_cluster)
   }
-   model <- train(
+  model <- train(
     workhours~.,
-    data = train_data, 
+    data = train_dat, 
     metric = "Rsquared",
     method = ml_model,
     preProcess = c("center","scale","nzv","medianImpute"), 
@@ -76,19 +75,19 @@ start <- Sys.time()
     trControl = myControl
   )
   
-   if(parallelize==TRUE) {
-     stopCluster(local_cluster)
-     registerDoSEQ()
-   }
-   
-end <- Sys.time()
-   
-  predicted <- predict(model, test_data, na.action = na.pass)
+  if(parallelize==TRUE) {
+    stopCluster(local_cluster)
+    registerDoSEQ()
+  }
   
-    results <- tibble(
+  end <- Sys.time()
+  
+  predicted <- predict(model, test_dat, na.action = na.pass)
+  
+  results <- tibble(
     model_name = ml_model,
     cv_rsq = max( model[["results"]][["Rsquared"]]),
-    ho_rsq = cor(predicted, test_data$workhours),
+    ho_rsq = cor(predicted, test_dat$workhours),
     no_seconds_og = difftime(end,start,units="secs")
   )
   
@@ -238,5 +237,4 @@ table2_tbl <- tibble(
 #   1 lm      4.68
 # 2 glmnet   9.99
 # 3 ranger  112. 
-
 
