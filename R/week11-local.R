@@ -64,92 +64,112 @@ start <- Sys.time()
   
   predicted <- predict(model, test_dat, na.action = na.pass)
   
-  end <- Sys.time() - start
+end <- Sys.time()
 
-  results <- tibble(
-    model_name = ml_model,
-    cv_rsq = max( model[["results"]][["Rsquared"]]),
-    ho_rsq = cor(predicted, test_dat$workhours),
-    no_seconds_og = as.numeric(end)
-  )
+  # results <- tibble(
+  #   model_name = ml_model,
+  #   cv_rsq = max( model[["results"]][["Rsquared"]]),
+  #   ho_rsq = cor(predicted, test_dat$workhours),
+  #   no_seconds_og = as.numeric(end)
+  # )
   
+  results <- list(
+    "model_name" = ml_model,
+    "cv_rsq" = max( model[["results"]][["Rsquared"]]),
+    "ho_rsq" = cor(predicted, test_dat$workhours),
+    "no_seconds_og" = difftime(end,start,units="secs")
+  )
   
   return(results)
   
 }
 
-#Same as project one but pre-allocated length of ml_results_list
+#Same as project 10 but pre-allocated length of ml_results_list
+#also changed from for loop to mapply
 
-ml_methods <- c("lm","glmnet","ranger","xgbTree") 
-ml_results_list <- vector(mode="list", length = 4)
+ml_methods <- c("lm","glmnet","ranger")  #add xgbTree back
+#ml_results_list <- vector(mode="list", length = 4)
 
 #run normal
-for(i in 1:length(ml_methods)) {
-  ml_results_list[[i]] <- ml_function(ml_model = ml_methods[i])
-}
+# for(i in 1:length(ml_methods)) {
+#   ml_results_list[[i]] <- ml_function(ml_model = ml_methods[i])
+# }
+
+
+##mapply returns list of 16 like 4x4 matrix
+ml_results_list <- mapply(ml_function, ml_model=ml_methods)
+
+##what does mapply return if i change function to return vector and not tibble?
+#same thing
+
+
 
 #run parallelized
-ml_results_list2 <- vector(mode="list", length = 4)
+#ml_results_list2 <- vector(mode="list", length = 4)
 
-cl <- makeCluster(detectCores()-1)
-clusterExport(cl, "ml_function")
 
-ml_results_list2[[i]] <- parSapply(cl,ml_methods,ml_function(ml_model = ml_methods))
+# ml_results_list2 <- mcmapply(ml_function, ml_model=ml_methods,
+#                              mc.preschedule = FALSE,
+#                              )
 
-# for(i in 1:length(ml_methods)) {
-#   ml_results_list2[[i]] <- ml_function(ml_model = ml_methods[i])
+
+# cl <- makeCluster(detectCores()-1)
+# clusterExport(cl, "ml_function")
 # 
-#   }
-stopCluster(cl)
+# ml_results_list2[[i]] <- parSapply(cl,ml_methods,ml_function(ml_model = ml_methods))
+# 
+# # for(i in 1:length(ml_methods)) {
+# #   ml_results_list2[[i]] <- ml_function(ml_model = ml_methods[i])
+# # 
+# #   }
+# stopCluster(cl)
 
-#not sure if for loop is running p
+
 
 #Publication
 
+#not needed with mapply
 #ml_results_df <- do.call("rbind", ml_results_list)
-ml_results_df2 <- do.call("rbind", ml_results_list2)
 
-ml_results_df2
-
-
-
-table1_tbl <- ml_results_df %>% 
-  mutate(algo = c("OLS Regression","Elastic Net","Random Forest", 
-                  "eXtreme Gradient Boosting"),
-         .before = cv_rsq)  %>% 
-  select(-c(model_name)) %>% 
+table1_tbl <- tibble(
+  algo = unlist(ml_results_list[1,]),
+  cv_rsq = unlist(ml_results_list[2,]),
+  ho_rsq = unlist(ml_results_list[3,]),
+) %>% 
   mutate(across(ends_with("_rsq"),
                 \(x) gsub("0\\.",".",
-                          format(round(x, digits=2), nsmall = 2)) ) )
+                          format(round(x, digits=2), nsmall = 2)) ) ) %>% 
+  mutate(algo = c("OLS Regression","Elastic Net","Random Forest" 
+               ))
 
+# # A tibble: 3 × 3
+# algo           cv_rsq ho_rsq
+# <chr>          <chr>  <chr> 
+# 1 OLS Regression .13    .06   
+# 2 Elastic Net    .84    .57   
+# 3 Random Forest  .91    .65 
 
-# A tibble: 4 × 3
-#  algo                      cv_rsq ho_rsq
-# 1 OLS Regression            .12    .18   
-# 2 Elastic Net               .83    .66   
-# 3 Random Forest             .93    .66   
-# 4 eXtreme Gradient Boosting .93    .68  
+# table1_tbl <- ml_results_df %>% 
+#   mutate(algo = c("OLS Regression","Elastic Net","Random Forest", 
+#                   "eXtreme Gradient Boosting"),
+
+ 
 
 #table2_tbl should have 4 rows for each algo
 #col1 - original - number of seconds normal
 #col2 - parallelized - number of seconds parallel op
 
-table2_tbl <- ml_results_df %>% 
-  mutate(algo = c("OLS Regression","Elastic Net","Random Forest", 
-                  "eXtreme Gradient Boosting"),
-         original = no_seconds_og
-         
-  ) %>% 
-  select(algo,original)
-           
+table2_tbl <- tibble(
+  algo = unlist(ml_results_list[1,]),
+  elapsed = unlist(ml_results_list[4,]),
+  
+)
+# A tibble: 3 × 2
+# algo   elapsed
+# <chr>    <dbl>
+#   1 lm      4.68
+# 2 glmnet   9.99
+# 3 ranger  112. 
 
-#need to change analysis to run normal or parallelized
-#
 
-#  A tibble: 4 × 2
-# algo                      original
-# <chr>                        <dbl>
-# 1 OLS Regression                7.07
-# 2 Elastic Net                  14.4 
-# 3 Random Forest                 1.49
-# 4 eXtreme Gradient Boosting     3.87
+
