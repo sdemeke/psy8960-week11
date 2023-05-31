@@ -44,13 +44,13 @@ ml_function <- function( ml_model =  c("lm","glmnet","ranger","xgbTree"), parall
   no_folds <- 10
   
   ml_model <- match.arg(ml_model)
- # parallelize <- FALSE
+  parallelize <- FALSE
   
-#if parallel-->
-if(parallelize == TRUE) {
-local_cluster <- makeCluster(detectCores()-1)
-registerDoParallel(local_cluster)
-}
+  #if parallel-->
+  if(parallelize == TRUE) {
+    local_cluster <- makeCluster(detectCores()-1)
+    registerDoParallel(local_cluster)
+  }
   start <- Sys.time() #moved start time to after parallel registration
   #does this change results?
   
@@ -79,13 +79,13 @@ registerDoParallel(local_cluster)
   
   predicted <- predict(model, test_dat, na.action = na.pass)
   
-end <- Sys.time()
-
-if(parallelize==TRUE) {
-  stopCluster(local_cluster)
-  registerDoSEQ()
+  end <- Sys.time()
+  
+  if(parallelize==TRUE) {
+    stopCluster(local_cluster)
+    registerDoSEQ()
   }
-
+  
   # results <- tibble(
   #   model_name = ml_model,
   #   cv_rsq = max( model[["results"]][["Rsquared"]]),
@@ -93,7 +93,7 @@ if(parallelize==TRUE) {
   #   no_seconds_og = difftime(end,start,units="secs")
   # )
   
-
+  
   results <- list(
     "model_name" = ml_model,
     "cv_rsq" = max( model[["results"]][["Rsquared"]]),
@@ -110,21 +110,46 @@ if(parallelize==TRUE) {
 
 #convert to list for easier use in sapply
 ml_methods <- c("lm","glmnet","ranger","xgbTree")  #add xgbTree back
-
+# ml_results_list <- vector(mode="list", length = 4)
+# 
+# #run normal
+# for(i in 1:length(ml_methods)) {
+#   ml_results_list[[i]] <- ml_function(ml_model = ml_methods[i])
+# }
+# 
+# 
 # ##mapply returns list of 16 like 4x4 matrix
 ml_results_norm <- mapply(ml_function, ml_model=ml_methods, parallelize=FALSE)
 
 
+##what does mapply return if i change function to return vector and not tibble?
+#same thing
 
-#only keep mapply if faster than for loop -- true
+#only keep mapply if faster than for loop
 #mapply times: 5.99367308616638 13.2867469787598 104.833606004715 410.396929979324
 
+#for loop times: 6.157455  17.87279 154.4489  333.5646
+#sapply times: 6.01535987854004 13.0884652137756 141.641587018967 425.3419880867
 
+#would be best to use sapply then easy convert to parSapply
+#is sapply slower than mapply or for loop??
+#yes, mapply is most efficient
+#clusterMap is like mapply :)))
+
+# ml_methods <- c("lm","glmnet","ranger","xgbTree") 
+# ml_results_norm2 <- sapply(ml_methods, function(x) do.call(ml_function, as.list(x)))
 
 #run parallelized
 
+# local_cluster <- makeCluster(detectCores())
+# registerDoParallel(local_cluster)
+# clusterExport(local_cluster, varlist = c("ml_function","ml_methods","gss_tbl"))
+#clusterEvalQ(local_cluster, library("caret"))
+#ml_results_prll <- parSapply(local_cluster,ml_methods, function(x) do.call(ml_function, as.list(x)))
 ml_results_prll <- mapply(ml_function, ml_model=ml_methods, parallelize=FALSE)
-#if i give each function run to one node
+#this approach with mapply but parallel inside custom is fastest so far
+#want to still use clusterMap or parSapply?
+#this wont work because if i give each function run to one node
 #that node works like normal rstudio for each model training run and is slow
 #want to use multiple clusters for model training
 
@@ -133,6 +158,20 @@ ml_results_prll <- mapply(ml_function, ml_model=ml_methods, parallelize=FALSE)
 # 17.6483490467072 -- a few seconds slower
 # 108.075783967972 -- faster by about 30 seconds
 # 244.542004108429 -- faster by less than 200 sec 
+
+##TIMES ARE MUCH LONGER WHEN MAKECLUSTER NOT INSIDE ML_FUNC...... parSapply but all rsq values same
+# 15.7357079982758
+# 40.6154329776764
+# 159.477109909058
+# 489.416625022888
+
+#why? having to load caret and other pckgs in each cluster?
+
+#clusterMap with full 8 nodes is also very long time
+
+
+#may be easier to just include parallel as option inside custom function
+#and then run normal 
 
 ##SIMPLE PARALLEL RESULTS
 #with glmnet and parallelize  TRUE vs FALSE
@@ -178,7 +217,7 @@ table1_tbl <- tibble(
                 \(x) gsub("0\\.",".",
                           format(round(x, digits=2), nsmall = 2)) ) ) %>% 
   mutate(algo = c("OLS Regression","Elastic Net","Random Forest" 
-               ))
+  ))
 
 # # A tibble: 3 × 3
 # algo           cv_rsq ho_rsq
@@ -191,7 +230,7 @@ table1_tbl <- tibble(
 #   mutate(algo = c("OLS Regression","Elastic Net","Random Forest", 
 #                   "eXtreme Gradient Boosting"),
 
- 
+
 
 #table2_tbl should have 4 rows for each algo
 #col1 - original - number of seconds normal
@@ -208,6 +247,5 @@ table2_tbl <- tibble(
 #   1 lm      4.68
 # 2 glmnet   9.99
 # 3 ranger  112. 
-
 
 
