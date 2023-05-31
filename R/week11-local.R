@@ -6,6 +6,8 @@ library(caret)
 library(parallel)
 library(doParallel)
 
+set.seed(24)
+
 
 #Data Import and Cleaning
 
@@ -38,67 +40,56 @@ gss_tbl %>%
 #added parallelize arg
 #removed other nonessential parameters
 
-ml_function <- function( ml_model =  c("lm","glmnet","ranger","xgbTree"), parallelize=FALSE) { 
+#make some of the code only run once
+
+no_folds <- 10
+cv_index <- createDataPartition(gss_tbl$workhours, p = 0.75, list = FALSE)
+train_dat <- gss_tbl[cv_index,] 
+test_dat <- gss_tbl[-cv_index,] 
+
+fold_indices <- createFolds(train_dat$workhours, k = no_folds)
+
+myControl <- trainControl(
+  method = "cv", 
+  number = no_folds, 
+  verboseIter = TRUE,
+  indexOut = fold_indices 
+)
+
+
+ml_function <- function(train_data=train_dat, test_data=test_dat, 
+                        ml_model =  c("lm","glmnet","ranger","xgbTree"), parallelize=FALSE) { 
   
-  dat <- gss_tbl
-  no_folds <- 10
+start <- Sys.time() 
   
-  ml_model <- match.arg(ml_model)
-  parallelize <- FALSE
-  
-  #if parallel-->
   if(parallelize == TRUE) {
     local_cluster <- makeCluster(detectCores()-1)
     registerDoParallel(local_cluster)
   }
-  start <- Sys.time() #moved start time to after parallel registration
-  #does this change results?
-  
-  set.seed(24)
-  cv_index <- createDataPartition(dat$workhours, p = 0.75, list = FALSE)
-  train_dat <- dat[cv_index,] 
-  test_dat <- dat[-cv_index,] 
-  
-  fold_indices <- createFolds(train_dat$workhours, k = no_folds)
-  
-  
-  model <- caret::train(
+   model <- train(
     workhours~.,
-    data = train_dat, 
+    data = train_data, 
     metric = "Rsquared",
     method = ml_model,
     preProcess = c("center","scale","nzv","medianImpute"), 
     na.action = na.pass,
-    trControl = trainControl(
-      method = "cv", 
-      number = no_folds, 
-      verboseIter = TRUE,
-      indexOut = fold_indices 
-    )
+    trControl = myControl
   )
   
-  predicted <- predict(model, test_dat, na.action = na.pass)
+   if(parallelize==TRUE) {
+     stopCluster(local_cluster)
+     registerDoSEQ()
+   }
+   
+end <- Sys.time()
+   
+  predicted <- predict(model, test_data, na.action = na.pass)
   
-  end <- Sys.time()
-  
-  if(parallelize==TRUE) {
-    stopCluster(local_cluster)
-    registerDoSEQ()
-  }
-  
-  # results <- tibble(
-  #   model_name = ml_model,
-  #   cv_rsq = max( model[["results"]][["Rsquared"]]),
-  #   ho_rsq = cor(predicted, test_dat$workhours),
-  #   no_seconds_og = difftime(end,start,units="secs")
-  # )
-  
-  
-  results <- list(
-    "model_name" = ml_model,
-    "cv_rsq" = max( model[["results"]][["Rsquared"]]),
-    "ho_rsq" = cor(predicted, test_dat$workhours),
-    "no_seconds_og" = difftime(end,start,units="secs")
+    results <- tibble(
+    model_name = ml_model,
+    cv_rsq = max( model[["results"]][["Rsquared"]]),
+    ho_rsq = cor(predicted, test_data$workhours),
+    no_seconds_og = difftime(end,start,units="secs")
   )
   
   return(results)
@@ -119,7 +110,7 @@ ml_methods <- c("lm","glmnet","ranger","xgbTree")  #add xgbTree back
 # 
 # 
 # ##mapply returns list of 16 like 4x4 matrix
-ml_results_norm <- mapply(ml_function, ml_model=ml_methods, parallelize=FALSE)
+ml_results_norm <- mapply(ml_function, SIMPLIFY = FALSE, ml_model=ml_methods, parallelize=FALSE)
 
 
 ##what does mapply return if i change function to return vector and not tibble?
@@ -146,7 +137,7 @@ ml_results_norm <- mapply(ml_function, ml_model=ml_methods, parallelize=FALSE)
 # clusterExport(local_cluster, varlist = c("ml_function","ml_methods","gss_tbl"))
 #clusterEvalQ(local_cluster, library("caret"))
 #ml_results_prll <- parSapply(local_cluster,ml_methods, function(x) do.call(ml_function, as.list(x)))
-ml_results_prll <- mapply(ml_function, ml_model=ml_methods, parallelize=FALSE)
+ml_results_prll <- mapply(ml_function, ml_model=ml_methods, parallelize=TRUE)
 #this approach with mapply but parallel inside custom is fastest so far
 #want to still use clusterMap or parSapply?
 #this wont work because if i give each function run to one node
