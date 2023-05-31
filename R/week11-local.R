@@ -4,6 +4,7 @@ library(tidyverse)
 library(haven)
 library(caret)
 library(parallel)
+library(doParallel)
 
 
 #Data Import and Cleaning
@@ -35,7 +36,7 @@ gss_tbl %>%
 
 #Edited to add Sys.time() to time, added new col to results
 
-ml_function <- function( ml_model =  c("lm","glmnet","ranger","xgbTree")) { 
+ml_function <- function( ml_model =  c("lm","glmnet","ranger","xgbTree"), parallelize=FALSE) { 
   
   dat <- gss_tbl
   no_folds <- 10
@@ -43,6 +44,11 @@ ml_function <- function( ml_model =  c("lm","glmnet","ranger","xgbTree")) {
   ml_model <- match.arg(ml_model)
   
 start <- Sys.time()
+#if parallel-->
+if(parallelize == TRUE) {
+local_cluster <- makeCluster(detectCores()-1)
+registerDoParallel(local_cluster)
+}
   
   set.seed(24)
   cv_index <- createDataPartition(dat$workhours, p = 0.75, list = FALSE)
@@ -70,6 +76,8 @@ start <- Sys.time()
   predicted <- predict(model, test_dat, na.action = na.pass)
   
 end <- Sys.time()
+
+if(parallelize==TRUE) stopCluster(local_cluster)
 
   # results <- tibble(
   #   model_name = ml_model,
@@ -104,7 +112,7 @@ end <- Sys.time()
 # 
 # 
 # ##mapply returns list of 16 like 4x4 matrix
-# ml_results_norm <- mapply(ml_function, ml_model=ml_methods)
+ml_results_norm <- mapply(ml_function, ml_model=ml_methods, parallelize=FALSE)
 
 
 ##what does mapply return if i change function to return vector and not tibble?
@@ -112,35 +120,59 @@ end <- Sys.time()
 
 #only keep mapply if faster than for loop
 #mapply times: 5.99367308616638 13.2867469787598 104.833606004715 410.396929979324
+
 #for loop times: 6.157455  17.87279 154.4489  333.5646
-#sapply times: 
+#sapply times: 6.01535987854004 13.0884652137756 141.641587018967 425.3419880867
 
 #would be best to use sapply then easy convert to parSapply
-ml_methods <- c("lm","glmnet","ranger","xgbTree") 
-ml_results_norm2 <- sapply(ml_methods, function(x) do.call(ml_function, as.list(x)))
+#is sapply slower than mapply or for loop??
+#yes, mapply is most efficient
+#clusterMap is like mapply :)))
+
+# ml_methods <- c("lm","glmnet","ranger","xgbTree") 
+# ml_results_norm2 <- sapply(ml_methods, function(x) do.call(ml_function, as.list(x)))
 
 #run parallelized
 
-#PROBLEM - mcmapply only for non Windows
-#no parXX version of mapply
-# ml_results_prll <- parSapply(ml_function, ml_model=ml_methods,
-#                              mc.preschedule = FALSE,
-#                              )
+# local_cluster <- makeCluster(detectCores())
+# registerDoParallel(local_cluster)
+# clusterExport(local_cluster, varlist = c("ml_function","ml_methods","gss_tbl"))
+#clusterEvalQ(local_cluster, library("caret"))
+#ml_results_prll <- parSapply(local_cluster,ml_methods, function(x) do.call(ml_function, as.list(x)))
+ml_results_prll <- mapply(ml_function, ml_model=ml_methods, parallelize=FALSE)
+#this approach with mapply but parallel inside custom is fastest so far
+#want to still use clusterMap or parSapply?
+#this wont work because if i give each function run to one node
+#that node works like normal rstudio for each model training run and is slow
+#want to use multiple clusters for model training
+
+#final parallelized results. compare to normal ml_function/mapply
+# 18.0432209968567 -- much slower
+# 17.6483490467072 -- a few seconds slower
+# 108.075783967972 -- faster by about 30 seconds
+# 244.542004108429 -- faster by less than 200 sec 
+
+##TIMES ARE MUCH LONGER WHEN MAKECLUSTER NOT INSIDE ML_FUNC...... parSapply but all rsq values same
+# 15.7357079982758
+# 40.6154329776764
+# 159.477109909058
+# 489.416625022888
+
+#why? having to load caret and other pckgs in each cluster?
+
+#clusterMap with full 8 nodes is also very long time
+# > ml_results_prll2[["lm"]][["no_seconds_og"]]
+# Time difference of 18.56973 secs
+# > ml_results_prll2[[2]][["no_seconds_og"]]
+# Time difference of 44.24892 secs
+# > ml_results_prll2[[3]][["no_seconds_og"]]
+# Time difference of 171.4149 secs
+# > ml_results_prll2[[4]][["no_seconds_og"]]
+# Time difference of 503.7331 secs
 
 
-
-# cl <- makeCluster(detectCores()-1)
-# clusterExport(cl, "ml_function")
-# 
-# ml_results_list2[[i]] <- parSapply(cl,ml_methods,ml_function(ml_model = ml_methods))
-# 
-# # for(i in 1:length(ml_methods)) {
-# #   ml_results_list2[[i]] <- ml_function(ml_model = ml_methods[i])
-# # 
-# #   }
-# stopCluster(cl)
-
-
+#may be easier to just include parallel as option inside custom function
+#and then run normal 
 
 #Publication
 
