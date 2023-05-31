@@ -35,6 +35,8 @@ gss_tbl %>%
 #Analysis
 
 #Edited to add Sys.time() to time, added new col to results
+#added parallelize arg
+#removed other nonessential parameters
 
 ml_function <- function( ml_model =  c("lm","glmnet","ranger","xgbTree"), parallelize=FALSE) { 
   
@@ -42,13 +44,15 @@ ml_function <- function( ml_model =  c("lm","glmnet","ranger","xgbTree"), parall
   no_folds <- 10
   
   ml_model <- match.arg(ml_model)
+  parallelize <- FALSE
   
-start <- Sys.time()
 #if parallel-->
 if(parallelize == TRUE) {
 local_cluster <- makeCluster(detectCores()-1)
 registerDoParallel(local_cluster)
 }
+  start <- Sys.time() #moved start time to after parallel registration
+  #does this change results?
   
   set.seed(24)
   cv_index <- createDataPartition(dat$workhours, p = 0.75, list = FALSE)
@@ -77,7 +81,10 @@ registerDoParallel(local_cluster)
   
 end <- Sys.time()
 
-if(parallelize==TRUE) stopCluster(local_cluster)
+if(parallelize==TRUE) {
+  stopCluster(local_cluster)
+  registerDoSEQ()
+  }
 
   # results <- tibble(
   #   model_name = ml_model,
@@ -102,7 +109,7 @@ if(parallelize==TRUE) stopCluster(local_cluster)
 #also changed from for loop to mapply
 
 #convert to list for easier use in sapply
-# ml_methods <- c("lm","glmnet","ranger","xgbTree")  #add xgbTree back
+ml_methods <- c("lm","glmnet","ranger","xgbTree")  #add xgbTree back
 # ml_results_list <- vector(mode="list", length = 4)
 # 
 # #run normal
@@ -146,7 +153,7 @@ ml_results_prll <- mapply(ml_function, ml_model=ml_methods, parallelize=FALSE)
 #that node works like normal rstudio for each model training run and is slow
 #want to use multiple clusters for model training
 
-#final parallelized results. compare to normal ml_function/mapply
+#first parallelized results. compare to normal ml_function/mapply
 # 18.0432209968567 -- much slower
 # 17.6483490467072 -- a few seconds slower
 # 108.075783967972 -- faster by about 30 seconds
@@ -161,18 +168,40 @@ ml_results_prll <- mapply(ml_function, ml_model=ml_methods, parallelize=FALSE)
 #why? having to load caret and other pckgs in each cluster?
 
 #clusterMap with full 8 nodes is also very long time
-# > ml_results_prll2[["lm"]][["no_seconds_og"]]
-# Time difference of 18.56973 secs
-# > ml_results_prll2[[2]][["no_seconds_og"]]
-# Time difference of 44.24892 secs
-# > ml_results_prll2[[3]][["no_seconds_og"]]
-# Time difference of 171.4149 secs
-# > ml_results_prll2[[4]][["no_seconds_og"]]
-# Time difference of 503.7331 secs
 
 
 #may be easier to just include parallel as option inside custom function
 #and then run normal 
+
+##SIMPLE PARALLEL RESULTS
+#with glmnet and parallelize  TRUE vs FALSE
+#when TRUE
+# $model_name
+# [1] "glmnet"
+# 
+# $cv_rsq
+# [1] 0.8400087
+# 
+# $ho_rsq
+# [1] 0.5734471
+# 
+# $no_seconds_og
+# Time difference of 18.0526 secs
+#when FALSE
+# $model_name
+# [1] "glmnet"
+# 
+# $cv_rsq
+# [1] 0.8400087
+# 
+# $ho_rsq
+# [1] 0.5734471
+# 
+# $no_seconds_og
+# Time difference of 15.3306 secs
+
+
+
 
 #Publication
 
