@@ -37,10 +37,12 @@ gss_tbl %>%
 #Analysis
 
 #Edited to add Sys.time() to time, added new col to results
-#added parallelize arg
-#removed other nonessential parameters
-
-#make some of the code only run once
+#took out some of the universal parameters to be executed outside of the function
+#did this so the repeated run of function for each ml method is more efficient
+#for the iteration of ml methods, changed from for loop to mapply
+#in all my tests, mapply was faster than a for loop
+#added another mapply execution that uses parallelized computation with 1 less
+#than the maximum number of cores
 
 no_folds <- 10
 cv_index <- createDataPartition(gss_tbl$workhours, p = 0.75, list = FALSE)
@@ -114,6 +116,7 @@ ml_results_prll_df <- do.call("rbind", ml_results_prll)
 
 #Publication
 
+#added table2_tbl code to store number of seconds for each of the 8 model runs
 
 table1_tbl <- ml_results_norm_df  %>% 
   mutate(algo = c("OLS Regression","Elastic Net","Random Forest", 
@@ -131,6 +134,14 @@ table1_tbl <- ml_results_norm_df  %>%
 # 3 Random Forest             .92    .62   
 # 4 eXtreme Gradient Boosting .97    .59 
 
+#prll results
+# # A tibble: 4 × 4
+# model_name cv_rsq ho_rsq no_seconds     
+# * <chr>       <dbl>  <dbl> <drtn>         
+#   1 lm          0.125 0.0633  10.452153 secs
+# 2 glmnet      0.860 0.573    5.262019 secs
+# 3 ranger      0.919 0.653   74.395088 secs
+# 4 xgbTree     0.941 0.580  114.382495 secs
 
 table2_tbl <- tibble(
   algo = c("OLS Regression","Elastic Net","Random Forest", 
@@ -143,11 +154,22 @@ table2_tbl <- tibble(
 # algo                      original        parallelized   
 # <chr>                     <drtn>          <drtn>         
 # 1 OLS Regression              4.403648 secs  10.452153 secs
-# 2 Elastic Net                 9.504120 secs   5.262019 secs
-# 3 Random Forest             104.215855 secs  74.395088 secs
-# 4 eXtreme Gradient Boosting 213.264331 secs 114.382495 secs
+# 2 Elastic Net                 9.504120 secs   5.262019 secs ~45% faster
+# 3 Random Forest             104.215855 secs  74.395088 secs ~30% faster
+# 4 eXtreme Gradient Boosting 213.264331 secs 114.382495 secs ~47% faster
 
 
+##Answers to Questions
+#1. The elastic net and extreme gradient boost models both improved about 45% in decreased runtime. Random forest
+#improved by about 30% of non-parallelized runtime. The OLS regression model increased in runtime and more than 
+#doubled in runtime from the original to parallelized computation. Parallelization can be a tradeoff for overhead
+#processing and while the more complex models benefited from parallelization, the simple OLS regression did not.
+#WHY
 
+#2. The fastest parallelization model was ~5seconds for elastic net while the slowest parallelized model was the
+#extreme gradient boost model at 114 seconds. WHY
 
+#3. I would recommend the Random Forest model. The rsquared results show that this model had a high cross-validated
+#as well as holdout Rsquared compared to the other models, only equivalent to the extreme gradient boost model which 
+#was significantly slower both in the original and the parallelized computation.
 
