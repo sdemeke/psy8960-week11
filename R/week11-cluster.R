@@ -20,13 +20,6 @@ gss_tbl <- read_sav("../data/GSS2016.sav") %>%
   select(-USUALHRS,-LEASTHRS)
 
 
-
-#Visualization
-
-gss_tbl %>% 
-  ggplot(aes(x=workhours)) + geom_histogram()
-
-
 #Analysis
 
 
@@ -114,4 +107,4 @@ table2_tbl <- tibble(
   supercomputer_7 = ml_results_prll_df$no_seconds
 )
 
-write_csv(table1_tbl, "../out/table3.csv")
+write_csv(table1_tbl, "../out/table4.csv")
