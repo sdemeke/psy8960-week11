@@ -11,7 +11,7 @@ set.seed(24)
 #Data Import and Cleaning
 
 
-gss_tbl <- read_sav("../data/GSS2016.sav") %>%  
+gss_tbl <- read_sav("data/GSS2016.sav") %>%  
   rename(workhours = MOSTHRS) %>% 
   drop_na(workhours) %>% 
   mutate(workhours = as.numeric(workhours)) %>% 
@@ -98,7 +98,7 @@ table1_tbl <- ml_results_norm_df  %>%
                 \(x) gsub("0\\.",".",
                           format(round(x, digits=2), nsmall = 2)) ) )
 
-write_csv(table1_tbl, "../out/table3test.csv")
+write_csv(table1_tbl, "out/table3test.csv")
 
 
 table2_tbl <- tibble(
@@ -107,4 +107,4 @@ table2_tbl <- tibble(
   supercomputer_7 = ml_results_prll_df$no_seconds
 )
 
-write_csv(table1_tbl, "../out/table4test.csv")
+write_csv(table1_tbl, "out/table4test.csv")
