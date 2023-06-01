@@ -20,6 +20,13 @@ gss_tbl <- read_sav("../data/GSS2016.sav") %>%
   select(-USUALHRS,-LEASTHRS)
 
 
+
+#Visualization
+
+gss_tbl %>% 
+  ggplot(aes(x=workhours)) + geom_histogram()
+
+
 #Analysis
 
 
@@ -40,7 +47,7 @@ myControl <- trainControl(
 
 ml_function <- function(train_data=train_dat, test_data=test_dat, ml_model =  c("lm","glmnet","ranger","xgbTree")) { 
   
-
+  
   start <- Sys.time()
   
   model <- train(
@@ -107,5 +114,4 @@ table2_tbl <- tibble(
   supercomputer_7 = ml_results_prll_df$no_seconds
 )
 
-write_csv(table1_tbl, "../out/table4.csv")
-
+write_csv(table1_tbl, "../out/table3.csv")
