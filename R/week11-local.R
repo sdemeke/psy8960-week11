@@ -57,14 +57,11 @@ myControl <- trainControl(
 )
 
 
-ml_function <- function(train_data=train_dat, test_data=test_dat, ml_model =  c("lm","glmnet","ranger","xgbTree"), parallelize=FALSE) { 
+ml_function <- function(train_data=train_dat, test_data=test_dat, ml_model =  c("lm","glmnet","ranger","xgbTree")) { 
   
-  start <- Sys.time() 
+
+  start <- Sys.time()
   
-  if(parallelize == TRUE) {
-    local_cluster <- makeCluster(detectCores()-1)
-    registerDoParallel(local_cluster)
-  }
   model <- train(
     workhours~.,
     data = train_data, 
@@ -74,11 +71,6 @@ ml_function <- function(train_data=train_dat, test_data=test_dat, ml_model =  c(
     na.action = na.pass,
     trControl = myControl
   )
-  
-  if(parallelize==TRUE) {
-    stopCluster(local_cluster)
-    registerDoSEQ()
-  }
   
   end <- Sys.time()
   
@@ -98,84 +90,70 @@ ml_function <- function(train_data=train_dat, test_data=test_dat, ml_model =  c(
 #Same as project 10 but pre-allocated length of ml_results_list
 #also changed from for loop to mapply
 
-#convert to list for easier use in sapply
-ml_methods <- c("lm","glmnet","ranger","xgbTree")  #add xgbTree back
-# ml_results_list <- vector(mode="list", length = 4)
-# 
-# #run normal
-# for(i in 1:length(ml_methods)) {
-#   ml_results_list[[i]] <- ml_function(ml_model = ml_methods[i])
-# }
-# 
-# 
-# ##mapply returns list of 16 like 4x4 matrix
-ml_results_norm <- mapply(ml_function, SIMPLIFY = FALSE, ml_model=ml_methods, parallelize=FALSE)
+ml_methods <- c("lm","glmnet","ranger","xgbTree")  
 
+ml_results_norm <- mapply(ml_function, SIMPLIFY = FALSE, ml_model=ml_methods)
+ml_results_norm_df <- do.call("rbind", ml_results_norm)
 
-##what does mapply return if i change function to return vector and not tibble?
-#same thing
-
-#only keep mapply if faster than for loop
-#mapply times: 5.99367308616638 13.2867469787598 104.833606004715 410.396929979324
 
 
 #run parallelized
 
+#is killing and restarting multiple cores for each run messing with efficiency? slightly
+#run it here just once
+#clusterMap very slow
+local_cluster <- makeCluster(detectCores()-1)
+registerDoParallel(local_cluster)
+ml_results_prll <- mapply(ml_function, SIMPLIFY = FALSE, ml_model=ml_methods)
+stopCluster(local_cluster)
+registerDoSEQ()
 
-ml_results_prll <- mapply(ml_function, SIMPLIFY = FALSE,ml_model=ml_methods, parallelize=TRUE)
+ml_results_prll_df <- do.call("rbind", ml_results_prll)
+
+
 
 #Publication
-# > do.call("rbind", ml_results_norm)
-# # A tibble: 4 × 4
-# model_name cv_rsq ho_rsq no_seconds     
-# * <chr>       <dbl>  <dbl> <drtn>         
-# 1 lm          0.129 0.0633   4.880909 secs
-# 2 glmnet      0.853 0.573   11.550487 secs
-# 3 ranger      0.919 0.623  127.294593 secs
-# 4 xgbTree     0.967 0.588  327.508267 secs
-# > do.call("rbind", ml_results_prll)
-# # A tibble: 4 × 4
-# model_name cv_rsq ho_rsq no_seconds    
-# * <chr>       <dbl>  <dbl> <drtn>        
-# 1 lm          0.125 0.0633  18.51846 secs
-# 2 glmnet      0.860 0.573   16.49879 secs
-# 3 ranger      0.919 0.653  112.90714 secs
-# 4 xgbTree     0.941 0.580  182.53742 secs
-# > 
-#not needed with mapply
-#ml_results_df <- do.call("rbind", ml_results_list)
 
 
-
-table1_tbl <- do.call("rbind", ml_results_norm) %>% 
+table1_tbl <- ml_results_norm_df  %>% 
   mutate(algo = c("OLS Regression","Elastic Net","Random Forest", 
                   "eXtreme Gradient Boosting"),
          .before = cv_rsq)  %>% 
-  select(-c(model_name)) %>% 
+  select(-c(model_name, no_seconds)) %>% 
   mutate(across(ends_with("_rsq"),
                 \(x) gsub("0\\.",".",
                           format(round(x, digits=2), nsmall = 2)) ) )
-
-
-# # A tibble: 3 × 3
-# algo           cv_rsq ho_rsq
-# <chr>          <chr>  <chr> 
-# 1 OLS Regression .13    .06   
-# 2 Elastic Net    .84    .57   
-# 3 Random Forest  .91    .65 
+# # A tibble: 4 × 4
+# algo                      cv_rsq ho_rsq no_seconds     
+# <chr>                     <chr>  <chr>  <drtn>         
+# 1 OLS Regression            .22    .06      4.247859 secs
+# 2 Elastic Net               .86    .57      9.763302 secs
+# 3 Random Forest             .93    .65     74.108250 secs
+# 4 eXtreme Gradient Boosting .97    .64    213.907211 secs
 
 
 
 
 table2_tbl <- tibble(
-  algo = unlist(ml_results_list[1,]),
-  elapsed = unlist(ml_results_list[4,]),
-  
+  algo = c("OLS Regression","Elastic Net","Random Forest", 
+           "eXtreme Gradient Boosting"),
+  original = ml_results_norm_df$no_seconds,
+  parallelized = ml_results_prll_df$no_seconds
 )
-# A tibble: 3 × 2
-# algo   elapsed
-# <chr>    <dbl>
-#   1 lm      4.68
-# 2 glmnet   9.99
-# 3 ranger  112. 
 
+# A tibble: 4 × 3
+# algo                      original        parallelized   (using kill and restart option)
+# <chr>                     <drtn>          <drtn>         
+#   1 OLS Regression              4.507472 secs   4.870411 secs
+# 2 Elastic Net                 9.497377 secs   6.788110 secs
+# 3 Random Forest              70.580850 secs  85.530010 secs
+# 4 eXtreme Gradient Boosting 202.817918 secs 138.839216 secs
+
+
+# A tibble: 4 × 3
+# algo                      original        parallelized   (using one run of make clusters)
+# <chr>                     <drtn>          <drtn>         
+# 1 OLS Regression              4.507472 secs   4.763399 secs
+# 2 Elastic Net                 9.497377 secs   3.559537 secs
+# 3 Random Forest              70.580850 secs  59.001915 secs
+# 4 eXtreme Gradient Boosting 202.817918 secs 172.822029 secs
