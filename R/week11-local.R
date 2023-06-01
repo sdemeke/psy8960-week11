@@ -123,15 +123,13 @@ table1_tbl <- ml_results_norm_df  %>%
   mutate(across(ends_with("_rsq"),
                 \(x) gsub("0\\.",".",
                           format(round(x, digits=2), nsmall = 2)) ) )
-# # A tibble: 4 × 4
-# algo                      cv_rsq ho_rsq no_seconds     
-# <chr>                     <chr>  <chr>  <drtn>         
-# 1 OLS Regression            .22    .06      4.247859 secs
-# 2 Elastic Net               .86    .57      9.763302 secs
-# 3 Random Forest             .93    .65     74.108250 secs
-# 4 eXtreme Gradient Boosting .97    .64    213.907211 secs
-
-
+# # A tibble: 4 × 3
+# algo                      cv_rsq ho_rsq
+# <chr>                     <chr>  <chr> 
+#   1 OLS Regression            .13    .06   
+# 2 Elastic Net               .85    .57   
+# 3 Random Forest             .92    .62   
+# 4 eXtreme Gradient Boosting .97    .59 
 
 
 table2_tbl <- tibble(
@@ -141,19 +139,15 @@ table2_tbl <- tibble(
   parallelized = ml_results_prll_df$no_seconds
 )
 
-# A tibble: 4 × 3
-# algo                      original        parallelized   (using kill and restart option)
+# # A tibble: 4 × 3
+# algo                      original        parallelized   
 # <chr>                     <drtn>          <drtn>         
-#   1 OLS Regression              4.507472 secs   4.870411 secs
-# 2 Elastic Net                 9.497377 secs   6.788110 secs
-# 3 Random Forest              70.580850 secs  85.530010 secs
-# 4 eXtreme Gradient Boosting 202.817918 secs 138.839216 secs
+# 1 OLS Regression              4.403648 secs  10.452153 secs
+# 2 Elastic Net                 9.504120 secs   5.262019 secs
+# 3 Random Forest             104.215855 secs  74.395088 secs
+# 4 eXtreme Gradient Boosting 213.264331 secs 114.382495 secs
 
 
-# A tibble: 4 × 3
-# algo                      original        parallelized   (using one run of make clusters)
-# <chr>                     <drtn>          <drtn>         
-# 1 OLS Regression              4.507472 secs   4.763399 secs
-# 2 Elastic Net                 9.497377 secs   3.559537 secs
-# 3 Random Forest              70.580850 secs  59.001915 secs
-# 4 eXtreme Gradient Boosting 202.817918 secs 172.822029 secs
+
+
+
