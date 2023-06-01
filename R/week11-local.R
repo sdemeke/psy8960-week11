@@ -57,7 +57,7 @@ myControl <- trainControl(
 )
 
 
-ml_function <- function(train_dat=train_dat, test_dat=test_dat, ml_model =  c("lm","glmnet","ranger","xgbTree"), parallelize=FALSE) { 
+ml_function <- function(train_data=train_dat, test_data=test_dat, ml_model =  c("lm","glmnet","ranger","xgbTree"), parallelize=FALSE) { 
   
   start <- Sys.time() 
   
@@ -67,7 +67,7 @@ ml_function <- function(train_dat=train_dat, test_dat=test_dat, ml_model =  c("l
   }
   model <- train(
     workhours~.,
-    data = train_dat, 
+    data = train_data, 
     metric = "Rsquared",
     method = ml_model,
     preProcess = c("center","scale","nzv","medianImpute"), 
@@ -82,12 +82,12 @@ ml_function <- function(train_dat=train_dat, test_dat=test_dat, ml_model =  c("l
   
   end <- Sys.time()
   
-  predicted <- predict(model, test_dat, na.action = na.pass)
+  predicted <- predict(model, test_data, na.action = na.pass)
   
   results <- tibble(
     model_name = ml_model,
     cv_rsq = max( model[["results"]][["Rsquared"]]),
-    ho_rsq = cor(predicted, test_dat$workhours),
+    ho_rsq = cor(predicted, test_data$workhours),
     no_seconds_og = difftime(end,start,units="secs")
   )
   
@@ -136,7 +136,7 @@ ml_results_norm <- mapply(ml_function, SIMPLIFY = FALSE, ml_model=ml_methods, pa
 # clusterExport(local_cluster, varlist = c("ml_function","ml_methods","gss_tbl"))
 #clusterEvalQ(local_cluster, library("caret"))
 #ml_results_prll <- parSapply(local_cluster,ml_methods, function(x) do.call(ml_function, as.list(x)))
-ml_results_prll <- mapply(ml_function, ml_model=ml_methods, parallelize=TRUE)
+ml_results_prll <- mapply(ml_function, SIMPLIFY = FALSE,ml_model=ml_methods, parallelize=TRUE)
 #this approach with mapply but parallel inside custom is fastest so far
 #want to still use clusterMap or parSapply?
 #this wont work because if i give each function run to one node
