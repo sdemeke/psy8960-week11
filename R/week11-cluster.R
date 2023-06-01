@@ -20,13 +20,6 @@ gss_tbl <- read_sav("../data/GSS2016.sav") %>%
   select(-USUALHRS,-LEASTHRS)
 
 
-
-#Visualization
-
-gss_tbl %>% 
-  ggplot(aes(x=workhours)) + geom_histogram()
-
-
 #Analysis
 
 
@@ -104,10 +97,15 @@ table1_tbl <- ml_results_norm_df  %>%
                 \(x) gsub("0\\.",".",
                           format(round(x, digits=2), nsmall = 2)) ) )
 
+write_csv(table1_tbl, "../out/table3.csv")
+
 
 table2_tbl <- tibble(
   algo = c("OLS Regression","Elastic Net","Random Forest", 
            "eXtreme Gradient Boosting"),
-  original = ml_results_norm_df$no_seconds,
-  parallelized = ml_results_prll_df$no_seconds
+  supercomputer = ml_results_norm_df$no_seconds,
+  supercomputer_7 = ml_results_prll_df$no_seconds
 )
+
+write_csv(table1_tbl, "../out/table4.csv")
+
