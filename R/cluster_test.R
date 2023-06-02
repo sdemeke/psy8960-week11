@@ -108,4 +108,4 @@ table2_tbl <- tibble(
   supercomputer_7 = ml_results_prll_df$no_seconds
 )
 
-write_csv(table1_tbl, "out/table4test.csv")
+write_csv(table2_tbl, "out/table4test.csv")
