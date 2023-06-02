@@ -76,16 +76,12 @@ ml_results_norm <- mapply(ml_function, SIMPLIFY = FALSE, ml_model=ml_methods)
 ml_results_norm_df <- do.call("rbind", ml_results_norm)
 
 #Paralleized
-
-local_cluster <- makeCluster(detectCores()-1)
+local_cluster <- makeCluster(7)
 registerDoParallel(local_cluster)
 ml_results_prll <- mapply(ml_function, SIMPLIFY = FALSE, ml_model=ml_methods)
 stopCluster(local_cluster)
 registerDoSEQ()
 ml_results_prll_df <- do.call("rbind", ml_results_prll)
-
-
-
 
 
 #Publication
@@ -94,7 +90,7 @@ table1_tbl <- ml_results_norm_df  %>%
   mutate(algo = c("OLS Regression","Elastic Net","Random Forest" 
                   ),
          .before = cv_rsq)  %>% 
-  select(-c(model_name, no_seconds)) %>% 
+  select(-c(model_name,no_seconds )) %>% 
   mutate(across(ends_with("_rsq"),
                 \(x) gsub("0\\.",".",
                           format(round(x, digits=2), nsmall = 2)) ) )
