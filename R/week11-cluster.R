@@ -75,7 +75,7 @@ ml_results_norm <- mapply(ml_function, SIMPLIFY = FALSE, ml_model=ml_methods)
 ml_results_norm_df <- do.call("rbind", ml_results_norm)
 
 #Paralleized
-#i ran detectCores() and it said 32 so applying similar max - 1 logic
+#i ran detectCores() within R from PuTTy and it said 32 so applying similar max - 1 logic
 local_cluster <- makeCluster(31)
 registerDoParallel(local_cluster)
 ml_results_prll <- mapply(ml_function, SIMPLIFY = FALSE, ml_model=ml_methods)

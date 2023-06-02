@@ -1,8 +1,8 @@
 #!/bin/bash
 #SBATCH --nodes=1
 #SBATCH --ntasks=31
-#SBATCH --mem=10gb
-#SBATCH -t 00:30:00
+#SBATCH --mem=20gb
+#SBATCH -t 00:10:00
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=demek004@umn.edu
 #SBATCH -p amdsmall
