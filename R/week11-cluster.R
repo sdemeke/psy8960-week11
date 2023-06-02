@@ -75,7 +75,8 @@ ml_results_norm <- mapply(ml_function, SIMPLIFY = FALSE, ml_model=ml_methods)
 ml_results_norm_df <- do.call("rbind", ml_results_norm)
 
 #Paralleized
-local_cluster <- makeCluster(7)
+#i ran detectCores() and it said 32 so applying similar max - 1 logic
+local_cluster <- makeCluster(31)
 registerDoParallel(local_cluster)
 ml_results_prll <- mapply(ml_function, SIMPLIFY = FALSE, ml_model=ml_methods)
 stopCluster(local_cluster)
@@ -102,7 +103,7 @@ table2_tbl <- tibble(
   algo = c("OLS Regression","Elastic Net","Random Forest", 
            "eXtreme Gradient Boosting"),
   supercomputer = round(ml_results_norm_df$no_seconds,2),
-  supercomputer_7 = round(ml_results_prll_df$no_seconds,2)
+  supercomputer_31  = round(ml_results_prll_df$no_seconds,2)
 )
 
 write_csv(table2_tbl, "out/table4.csv")
