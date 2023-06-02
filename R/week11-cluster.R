@@ -98,7 +98,7 @@ table1_tbl <- ml_results_norm_df  %>%
                 \(x) gsub("0\\.",".",
                           format(round(x, digits=2), nsmall = 2)) ) )
 
-write_csv(table1_tbl, "out/table3_127.csv")
+write_csv(table1_tbl, "out/table3.csv")
 
 
 table2_tbl <- tibble(
