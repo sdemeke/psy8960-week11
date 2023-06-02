@@ -39,7 +39,7 @@ myControl <- trainControl(
 
 ml_function <- function(train_data=train_dat, test_data=test_dat, ml_model =  c("lm","glmnet","ranger","xgbTree")) { 
   
-  
+
   start <- Sys.time()
   
   model <- train(
@@ -53,6 +53,7 @@ ml_function <- function(train_data=train_dat, test_data=test_dat, ml_model =  c(
   )
   
   end <- Sys.time()
+
   
   predicted <- predict(model, test_data, na.action = na.pass)
   
@@ -75,15 +76,15 @@ ml_results_norm <- mapply(ml_function, SIMPLIFY = FALSE, ml_model=ml_methods)
 ml_results_norm_df <- do.call("rbind", ml_results_norm)
 
 #Paralleized
+
 local_cluster <- makeCluster(detectCores()-1)
 registerDoParallel(local_cluster)
-
 ml_results_prll <- mapply(ml_function, SIMPLIFY = FALSE, ml_model=ml_methods)
-
 stopCluster(local_cluster)
 registerDoSEQ()
-
 ml_results_prll_df <- do.call("rbind", ml_results_prll)
+
+
 
 
 
