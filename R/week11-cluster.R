@@ -75,12 +75,11 @@ ml_results_norm <- mapply(ml_function, SIMPLIFY = FALSE, ml_model=ml_methods)
 ml_results_norm_df <- do.call("rbind", ml_results_norm)
 
 #Paralleized
-local_cluster <- makeCluster(detectCores()-1)
+local_cluster <- makeCluster(7)
 registerDoParallel(local_cluster)
 ml_results_prll <- mapply(ml_function, SIMPLIFY = FALSE, ml_model=ml_methods)
 stopCluster(local_cluster)
 registerDoSEQ()
-
 ml_results_prll_df <- do.call("rbind", ml_results_prll)
 
 
@@ -102,8 +101,8 @@ write_csv(table1_tbl, "out/table3.csv")
 table2_tbl <- tibble(
   algo = c("OLS Regression","Elastic Net","Random Forest", 
            "eXtreme Gradient Boosting"),
-  supercomputer = ml_results_norm_df$no_seconds,
-  supercomputer_7 = ml_results_prll_df$no_seconds
+  supercomputer = round(ml_results_norm_df$no_seconds,2),
+  supercomputer_7 = round(ml_results_prll_df$no_seconds,2)
 )
 
-write_csv(table1_tbl, "out/table4.csv")
+write_csv(table2_tbl, "out/table4.csv")
