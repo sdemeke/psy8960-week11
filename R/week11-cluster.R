@@ -76,7 +76,9 @@ ml_results_norm_df <- do.call("rbind", ml_results_norm)
 
 #Paralleized
 #i ran detectCores() within R from PuTTy and it said 32 so applying similar max - 1 logic
-local_cluster <- makeCluster(31)
+#after perusing the MSI job submission sites, i see that amdsmall partition allows 128 cores per node and advises 1900MB per core
+#i switched to testing 128-1=127 cores 
+local_cluster <- makeCluster(127)
 registerDoParallel(local_cluster)
 ml_results_prll <- mapply(ml_function, SIMPLIFY = FALSE, ml_model=ml_methods)
 stopCluster(local_cluster)
@@ -96,14 +98,14 @@ table1_tbl <- ml_results_norm_df  %>%
                 \(x) gsub("0\\.",".",
                           format(round(x, digits=2), nsmall = 2)) ) )
 
-write_csv(table1_tbl, "out/table3.csv")
+write_csv(table1_tbl, "out/table3_127.csv")
 
 
 table2_tbl <- tibble(
   algo = c("OLS Regression","Elastic Net","Random Forest", 
            "eXtreme Gradient Boosting"),
   supercomputer = round(ml_results_norm_df$no_seconds,2),
-  supercomputer_31  = round(ml_results_prll_df$no_seconds,2)
+  supercomputer_127  = round(ml_results_prll_df$no_seconds,2)
 )
 
-write_csv(table2_tbl, "out/table4.csv")
+write_csv(table2_tbl, "out/table4_127.csv")
