@@ -2,7 +2,7 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks=14
 #SBATCH --mem=10gb
-#SBATCH -t 00:00:10
+#SBATCH -t 00:10:00
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=demek004@umn.edu
 #SBATCH -p amdsmall
