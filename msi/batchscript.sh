@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --nodes=1
 #SBATCH --ntasks=32
-#SBATCH --mem=10gb
+#SBATCH --mem=60gb
 #SBATCH -t 00:30:00
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=demek004@umn.edu
