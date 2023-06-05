@@ -61,7 +61,7 @@ myControl <- trainControl(
 
 ml_function <- function(train_data=train_dat, test_data=test_dat, ml_model =  c("lm","glmnet","ranger","xgbTree")) { 
   
-
+set.seed(24)
   start <- Sys.time()
   
   model <- train(
@@ -100,25 +100,29 @@ ml_function <- function(train_data=train_dat, test_data=test_dat, ml_model =  c(
 ml_methods <- c("lm","glmnet","ranger","xgbTree")  
 
 ml_results_norm <- mapply(ml_function, SIMPLIFY = FALSE, ml_model=ml_methods)
+
 ml_results_norm_df <- do.call("rbind", ml_results_norm)
 
 
 
 #To run the parallelized version of the ml models, I repeat the same code as above and
 #made no changes to ml_function(). I just called the parallelizing functions from
-#parallel/doParallel. For this local run, I set the number of clusers to one less than
+#parallel/doParallel. For this local run, I set the number of clusers to two less than
 #the number of cores on the local machine (in my case, detectCores() returns 8). I leave
-#one out so that other local processes can continue like running my browser to view DataCamp
-Sys.sleep(2)
-local_cluster <- makeCluster(detectCores()-1)
-registerDoParallel(local_cluster)
-ml_results_prll <- mapply(ml_function, SIMPLIFY = FALSE, ml_model=ml_methods)
-stopCluster(local_cluster)
-registerDoSEQ()
+#two out so that other local processes can continue like running my browser to view DataCamp.
+#When I only left one core out, R would crash every now and then or abort entirely. Leaving
+#out two did not hurt the runtime for code and was always successful. I assume this is because
+#my laptop has multiple processes running simultaneously and suddenly giving R access to 7 
+#cores leads to unintended effects and crashes. I could have shut off most other processes
 
+local_cluster <- makeCluster(detectCores()-2)
+registerDoParallel(local_cluster)
+
+ml_results_prll <- mapply(ml_function, SIMPLIFY = FALSE, ml_model=ml_methods)
 ml_results_prll_df <- do.call("rbind", ml_results_prll)
 
-
+stopCluster(local_cluster)
+registerDoSEQ()
 
 #Publication
 
@@ -135,22 +139,23 @@ table1_tbl <- ml_results_norm_df  %>%
   mutate(across(ends_with("_rsq"),
                 \(x) gsub("0\\.",".",
                           format(round(x, digits=2), nsmall = 2)) ) )
-# # A tibble: 4 × 3
+# A tibble: 4 × 3
 # algo                      cv_rsq ho_rsq
 # <chr>                     <chr>  <chr> 
-# 1 OLS Regression            .13    .06   
-# 2 Elastic Net               .85    .57   
-# 3 Random Forest             .92    .62   
-# 4 eXtreme Gradient Boosting .97    .59 
+# 1 OLS Regression            .14    .11   
+# 2 Elastic Net               .83    .55   
+# 3 Random Forest             .91    .63   
+# 4 eXtreme Gradient Boosting .97    .57 
 
-#prll results
+#prll results 6 cores
 # # A tibble: 4 × 4
 # model_name cv_rsq ho_rsq no_seconds     
 # * <chr>       <dbl>  <dbl> <drtn>         
-# 1 lm          0.125 0.0633  10.452153 secs
-# 2 glmnet      0.860 0.573    5.262019 secs
-# 3 ranger      0.919 0.653   74.395088 secs
-# 4 xgbTree     0.941 0.580  114.382495 secs
+# 1 lm          0.143  0.108   7.493517 secs
+# 2 glmnet      0.810  0.552   6.081329 secs
+# 3 ranger      0.920  0.622  85.035237 secs
+# 4 xgbTree     0.950  0.574 137.325944 secs
+
 
 table2_tbl <- tibble(
   algo = c("OLS Regression","Elastic Net","Random Forest", 
@@ -159,27 +164,34 @@ table2_tbl <- tibble(
   parallelized = round(ml_results_prll_df$no_seconds,2)
 )
 
-# # A tibble: 4 × 3
-# algo                      original        parallelized   
-# <chr>                     <drtn>          <drtn>         
-# 1 OLS Regression              4.403648 secs  10.452153 secs
-# 2 Elastic Net                 9.504120 secs   5.262019 secs ~45% faster
-# 3 Random Forest             104.215855 secs  74.395088 secs ~30% faster
-# 4 eXtreme Gradient Boosting 213.264331 secs 114.382495 secs ~47% faster
+# A tibble: 4 × 3 - 6 cores
+#  algo                      original    parallelized
+# 1 OLS Regression              4.76 secs  10.63 secs 
+# 2 Elastic Net                10.74 secs   6.27 secs 
+# 3 Random Forest             101.93 secs  83.81 secs 
+# 4 eXtreme Gradient Boosting 257.28 secs 144.53 secs 
 
+# # A tibble: 4 × 3 - 7 cores
+# algo                      original    parallelized
+# <chr>                     <drtn>      <drtn>      
+# 1 OLS Regression              6.39 secs  12.54 secs 
+# 2 Elastic Net                14.55 secs   6.17 secs 
+# 3 Random Forest             105.50 secs  90.16 secs 
+# 4 eXtreme Gradient Boosting 258.98 secs 141.21 secs 
 
 ##Answers to Questions
-#1. The elastic net and extreme gradient boost models both improved about 45% in decreased runtime. Random forest
-#improved by about 30%. The OLS regression model increased in runtime by more than double. Parallelization can be
-#a tradeoff for overhead processing and while the more complex models benefited from parallelization, the simple 
+
+#1. The elastic net and extreme gradient boost models both improved over 40% in decreased runtime. Random forest
+#improved by about 20%. The OLS regression model increased in runtime by more than double. Parallelization can be
+#a trade-off for overhead processing and while the more complex models benefited from parallelization, the simple 
 #OLS regression did not. For the OLS model, the actual model code is already quite quick so when I add the added
 #burden of creating multiple clusters, the computation involved in managing the different threads ends up increasing
 #the model runtime. For the more complex models, however, the sequential runtime for each model run is much more 
 #computationally expensive and the added overhead of parallelizing does not counteract the increase in efficiency
 #gained by running the expensive models over more clusters.
 
-#2. The fastest parallelization model was ~5 seconds for elastic net while the slowest parallelized model was the
-#extreme gradient boost model at 114 seconds, giving a difference of about 109 seconds.
+#2. The fastest parallelization model was ~6 seconds for elastic net while the slowest parallelized model was the
+#extreme gradient boost model at 144 seconds, giving a difference of about 138 seconds.
 #WHY
 
 #3. I would recommend the Random Forest model. The rsquared results show that this model had a high cross-validated
