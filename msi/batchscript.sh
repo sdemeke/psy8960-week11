@@ -7,5 +7,5 @@
 #SBATCH --mail-user=demek004@umn.edu
 #SBATCH -p amdsmall
 cd ~/psy8960-week11
-module load R/4.3.0-openblas
+module load R/4.2.2-openblas
 Rscript R/week11-cluster.R
