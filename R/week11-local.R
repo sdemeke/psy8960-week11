@@ -12,7 +12,7 @@ set.seed(24)
 #Data Import and Cleaning
 
 #Same as for project 10 plus added line removing other two work hours variables. There are more 
-#hours variables like HRS1, HRS2, USUALHRS, and LEASHRS. Project instructions said to remove two
+#hours variables like HRS1, HRS2, USUALHRS, and LEASTHRS. Project instructions said to remove 2
 #other variables only. HRS2 is already removed after filtering 75% missingness so I am electing 
 #to remove USUALHRS and HRS1 because these two correlate higher (>.75) with MOSTHRS.
 
@@ -37,11 +37,11 @@ gss_tbl %>%
 #Many changes from project 10. First, I took out some code from the function so as not to run 
 #the same lines repeatedly and increase code efficiency. These include the universal settings 
 #for the machine learning models like setting the folds, creating the train/testing data sets,
-#and setting the trainControl() custom settings. Now my ml_function only takes in the training 
+#and setting the trainControl() custom settings. Now my function (renamed) only takes in the training 
 #data, testing data, and the name of the ml model as parameters.
 #I also added Sys.time() lines to capture the time it takes for caret::train() to run for each 
-#model. The results tibble also includes a new column to store this time variable using the difftime()
-#function to set fixed seconds unit.
+#model. The results tibble also includes a new column to store this time variable using the 
+#difftime() function to set fixed seconds unit.
 
 
 no_folds <- 10
@@ -59,7 +59,7 @@ myControl <- trainControl(
 )
 
 
-ml_function <- function(train_data=train_dat, test_data=test_dat, ml_model =  c("lm","glmnet","ranger","xgbTree")) { 
+getMLResults <- function(train_data=train_dat, test_data=test_dat, ml_model =  c("lm","glmnet","ranger","xgbTree")) { 
   
 set.seed(24)
   start <- Sys.time()
@@ -90,23 +90,23 @@ set.seed(24)
 }
 
 
-#In project 10, I used a for loop to iterate over the different models and run ml_function() on
+#In project 10, I used a for loop to iterate over the different models and run my function on
 #each. After comparing the runtime of different approaches, I chose to use mapply() for this 
-#purpose instead of the for loop. This was true even when I fixed my fatal error in project 10 
-#of growing an empty list with no pre-defined length. 
+#purpose instead of the for loop. Mapply() was faster even when I fixed my fatal error in 
+#project 10 of growing an empty list with no pre-defined length. 
 #mapply() also returns a list/matrix object if SIMPLIFY=TRUE. To return a list that I can rbind
 #into a dataframe, I set SIMPLIFY=FALSE and call rbind to collapse the list to a dataframe.
 
 ml_methods <- c("lm","glmnet","ranger","xgbTree")  
 
-ml_results_norm <- mapply(ml_function, SIMPLIFY = FALSE, ml_model=ml_methods)
+ml_results_norm <- mapply(getMLResults, SIMPLIFY = FALSE, ml_model=ml_methods)
 
 ml_results_norm_df <- do.call("rbind", ml_results_norm)
 
 
 
 #To run the parallelized version of the ml models, I repeat the same code as above and
-#made no changes to ml_function(). I just called the parallelizing functions from
+#made no changes to getMLResults(). I just called the parallelizing functions from
 #parallel/doParallel. For this local run, I set the number of clusers to two less than
 #the number of cores on the local machine (in my case, detectCores() returns 8). I leave
 #two out so that other local processes can continue like running my browser to view DataCamp.
@@ -118,7 +118,7 @@ ml_results_norm_df <- do.call("rbind", ml_results_norm)
 local_cluster <- makeCluster(detectCores()-2)
 registerDoParallel(local_cluster)
 
-ml_results_prll <- mapply(ml_function, SIMPLIFY = FALSE, ml_model=ml_methods)
+ml_results_prll <- mapply(getMLResults, SIMPLIFY = FALSE, ml_model=ml_methods)
 ml_results_prll_df <- do.call("rbind", ml_results_prll)
 
 stopCluster(local_cluster)
@@ -129,7 +129,7 @@ registerDoSEQ()
 #No changes to table1_tbl code except for deselecting no_seconds variable
 
 #Added table2_tbl code to pull number of seconds for each of the 8 model runs
-#from the final model result dataframes.
+#from the final model result data frames.
 
 table1_tbl <- ml_results_norm_df  %>% 
   mutate(algo = c("OLS Regression","Elastic Net","Random Forest", 
@@ -164,20 +164,15 @@ table2_tbl <- tibble(
   parallelized = round(ml_results_prll_df$no_seconds,2)
 )
 
-# A tibble: 4 × 3 - 6 cores
-#  algo                      original    parallelized
-# 1 OLS Regression              4.76 secs  10.63 secs 
-# 2 Elastic Net                10.74 secs   6.27 secs 
-# 3 Random Forest             101.93 secs  83.81 secs 
-# 4 eXtreme Gradient Boosting 257.28 secs 144.53 secs 
-
-# # A tibble: 4 × 3 - 7 cores
+# # A tibble: 4 × 3
 # algo                      original    parallelized
 # <chr>                     <drtn>      <drtn>      
-# 1 OLS Regression              6.39 secs  12.54 secs 
-# 2 Elastic Net                14.55 secs   6.17 secs 
-# 3 Random Forest             105.50 secs  90.16 secs 
-# 4 eXtreme Gradient Boosting 258.98 secs 141.21 secs 
+# 1 OLS Regression              4.49 secs   7.21 secs 
+# 2 Elastic Net                 9.90 secs   5.51 secs 
+# 3 Random Forest              66.81 secs  77.74 secs 
+# 4 eXtreme Gradient Boosting 202.58 secs 133.63 secs 
+
+
 
 ##Answers to Questions
 
@@ -186,7 +181,7 @@ table2_tbl <- tibble(
 #a trade-off for overhead processing and while the more complex models benefited from parallelization, the simple 
 #OLS regression did not. For the OLS model, the actual model code is already quite quick so when I add the added
 #burden of creating multiple clusters, the computation involved in managing the different threads ends up increasing
-#the model runtime. For the more complex models, however, the sequential runtime for each model run is much more 
+#the model runtime. For the more complex models, however, the sequential runtime for each model run is more 
 #computationally expensive and the added overhead of parallelizing does not counteract the increase in efficiency
 #gained by running the expensive models over more clusters.
 
@@ -195,8 +190,8 @@ table2_tbl <- tibble(
 #WHY
 
 #3. I would recommend the Random Forest model. The rsquared results show that this model had a high cross-validated
-#as well as holdout Rsquared compared to the other models, only equivalent to the extreme gradient boost model which 
+#as well as holdout Rsquared compared to the other models, equivalent only to the extreme gradient boost model which 
 #was significantly slower both in the original and the parallelized computation. So the random forest is as accurate 
-#as the most complex model tested but still efficient in computation time which presents a useful balance for the 
-#application of machine learning models.
+#as the most complex model tested but still relatively efficient in computation time which presents a useful balance
+#for the application of machine learning models.
 
