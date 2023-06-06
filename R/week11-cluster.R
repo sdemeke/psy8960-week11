@@ -1,5 +1,4 @@
 #Script Settings and Resources
-setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
 library(tidyverse)
 library(haven)
 library(caret)
@@ -14,7 +13,7 @@ set.seed(24)
 
 #Data Import and Cleaning
 
-gss_tbl <- read_sav("../data/GSS2016.sav") %>%  
+gss_tbl <- read_sav("data/GSS2016.sav") %>%  
   rename(workhours = MOSTHRS) %>% 
   drop_na(workhours) %>% 
   mutate(workhours = as.numeric(workhours)) %>% 
