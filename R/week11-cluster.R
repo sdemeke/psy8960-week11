@@ -13,6 +13,9 @@ set.seed(24)
 
 #Data Import and Cleaning
 
+#Changed call to file path due to change in directory structure from within MSI. In local.R, wd is set by location of
+#Rstudio file. In MSI, wd is the home directory of the git repo.
+
 gss_tbl <- read_sav("data/GSS2016.sav") %>%  
   rename(workhours = MOSTHRS) %>% 
   drop_na(workhours) %>% 
@@ -72,7 +75,7 @@ getMLResults <- function(train_data=train_dat, test_data=test_dat, ml_model =  c
 
 ml_methods <- c("lm","glmnet","ranger","xgbTree")  
 
-#Normal
+#Normal - no changes made
 ml_results_norm <- mapply(getMLResults, SIMPLIFY = FALSE, ml_model=ml_methods)
 
 ml_results_norm_df <- do.call("rbind", ml_results_norm)
@@ -80,8 +83,9 @@ ml_results_norm_df <- do.call("rbind", ml_results_norm)
 
 #Paralleized
 #after perusing the MSI job submission sites, i saw that amdsmall partition allows 128 cores 
-#per node and advises 1900MB per core
-#i switched to testing 128-1=127 cores 
+#per node and advises 1900MB per core. I was having trouble with job submission failures at 
+#128 cores so I opted for 64 cores and applied same logic of using 64-1=63 cores for models
+#to run on
 local_cluster <- makeCluster(63)
 registerDoParallel(local_cluster)
 
@@ -94,6 +98,7 @@ registerDoSEQ()
 
 
 #Publication
+#Only changes here for saving csv output and changing column names in table2_tbl
 
 table1_tbl <- ml_results_norm_df  %>% 
   mutate(algo = c("OLS Regression","Elastic Net","Random Forest", 
@@ -106,6 +111,12 @@ table1_tbl <- ml_results_norm_df  %>%
 
 write_csv(table1_tbl, "out/table3.csv")
 
+#table3.csv 
+# algo,cv_rsq,ho_rsq
+# OLS Regression,.14,.11
+# Elastic Net,.81,.55
+# Random Forest,.92,.62
+# eXtreme Gradient Boosting,.95,.57
 
 table2_tbl <- tibble(
   algo = c("OLS Regression","Elastic Net","Random Forest", 
@@ -115,3 +126,30 @@ table2_tbl <- tibble(
 )
 
 write_csv(table2_tbl, "out/table4.csv")
+
+#table4.csv
+# algo,supercomputer,supercomputer_63
+# OLS Regression,6.05,6.97
+# Elastic Net,13.65,2.8
+# Random Forest,42.5,7.3
+# eXtreme Gradient Boosting,267.07,8.14
+
+# # A tibble: 4 × 3
+# algo                      original    parallelized
+# <chr>                     <drtn>      <drtn>      
+# 1 OLS Regression              4.49 secs   7.21 secs 
+# 2 Elastic Net                 9.90 secs   5.51 secs 
+# 3 Random Forest              66.81 secs  77.74 secs 
+# 4 eXtreme Gradient Boosting 202.58 secs 133.63 secs 
+
+##Answers to Questions
+#1. Which models benefited most from moving to the supercomputer and why?
+#
+
+#2. What is the relationship between time and the number of cores used?
+
+#3. If your supervisor asked you to pick a model for use in a production model, would you recommend using the supercomputer and why? Consider all four tables when providing an answer.
+
+
+
+
