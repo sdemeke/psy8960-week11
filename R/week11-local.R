@@ -37,12 +37,11 @@ gss_tbl %>%
 #Many changes from project 10. First, I took out some code from the function so as not to run 
 #the same lines repeatedly and increase code efficiency. These include the universal settings 
 #for the machine learning models like setting the folds, creating the train/testing data sets,
-#and setting the trainControl() custom settings. Now my function (renamed it) only takes in the training 
+#and setting the trainControl() custom settings. Now my function (renamed) only takes in the training 
 #data, testing data, and the name of the ml model as parameters.
 #I also added Sys.time() lines to capture the time it takes for caret::train() to run for each 
 #model. The results tibble also includes a new column to store this time variable using the 
 #difftime() function to set fixed seconds unit.
-#I also fixed my error for the holdout rsquared from a correlation to correct squared value.
 
 
 no_folds <- 10
@@ -62,7 +61,7 @@ myControl <- trainControl(
 
 getMLResults <- function(train_data=train_dat, test_data=test_dat, ml_model =  c("lm","glmnet","ranger","xgbTree")) { 
   
-set.seed(24)
+  set.seed(24)
   start <- Sys.time()
   
   model <- train(
@@ -82,7 +81,7 @@ set.seed(24)
   results <- tibble(
     model_name = ml_model,
     cv_rsq = max( model[["results"]][["Rsquared"]]),
-    ho_rsq = cor(predicted, test_data$workhours)^2,
+    ho_rsq = cor(predicted, test_data$workhours),
     no_seconds = difftime(end,start,units="secs")
   )
   
@@ -100,19 +99,6 @@ set.seed(24)
 
 ml_methods <- c("lm","glmnet","ranger","xgbTree")  
 
-ml_results_norm <- mapply(getMLResults, SIMPLIFY = FALSE, ml_model=ml_methods)
-
-ml_results_norm_df <- do.call("rbind", ml_results_norm)
-
-
-#To run the parallelized version of the ml models, I repeat the same code as above and
-#made no changes to getMLResults(). I just called the parallelizing functions from
-#parallel/doParallel. For this local run, I set the number of clusers to one less than
-#the number of cores on the local machine (in my case, detectCores() returns 8). I leave
-#one out so that other local processes can continue like running my browser.
-#
-Sys.sleep(10)
-
 
 local_cluster <- makeCluster(detectCores()-1)
 registerDoParallel(local_cluster)
@@ -122,6 +108,26 @@ ml_results_prll_df <- do.call("rbind", ml_results_prll)
 
 stopCluster(local_cluster)
 registerDoSEQ()
+
+
+
+
+#To run the parallelized version of the ml models, I repeat the same code as above and
+#made no changes to getMLResults(). I just called the parallelizing functions from
+#parallel/doParallel. For this local run, I set the number of clusers to two less than
+#the number of cores on the local machine (in my case, detectCores() returns 8). I leave
+#two out so that other local processes can continue like running my browser to view DataCamp.
+#When I only left one core out, R would crash every now and then or abort entirely. Leaving
+#out two did not hurt the runtime for code and was always successful. I assume this is because
+#my laptop has multiple processes running simultaneously and suddenly giving R access to 7 
+#cores leads to unintended effects and crashes. I could have shut off most other processes
+Sys.sleep(10)
+
+ml_results_norm <- mapply(getMLResults, SIMPLIFY = FALSE, ml_model=ml_methods)
+
+ml_results_norm_df <- do.call("rbind", ml_results_norm)
+
+
 
 
 
@@ -144,18 +150,27 @@ table1_tbl <- ml_results_norm_df  %>%
 # A tibble: 4 × 3
 # algo                      cv_rsq ho_rsq
 # <chr>                     <chr>  <chr> 
-# 1 OLS Regression            .14    .01   
-# 2 Elastic Net               .81    .31   
-# 3 Random Forest             .92    .39   
-# 4 eXtreme Gradient Boosting .95    .33  
+# 1 OLS Regression            .14    .11   
+# 2 Elastic Net               .83    .55   
+# 3 Random Forest             .91    .63   
+# 4 eXtreme Gradient Boosting .97    .57 
 
+#prll results 7 cores
 # # A tibble: 4 × 4
 # model_name cv_rsq ho_rsq no_seconds     
 # * <chr>       <dbl>  <dbl> <drtn>         
-# 1 lm          0.143 0.0116   6.578676 secs
-# 2 glmnet      0.810 0.305    4.109523 secs
-# 3 ranger      0.920 0.387   70.297807 secs
-# 4 xgbTree     0.950 0.329  155.496042 secs
+# 1 lm          0.143  0.108  10.988380 secs
+# 2 glmnet      0.810  0.552   5.646603 secs
+# 3 ranger      0.920  0.622  78.120190 secs
+# 4 xgbTree     0.950  0.574 131.665324 secs
+
+# A tibble: 4 × 4 - same but ran this first
+# model_name cv_rsq ho_rsq no_seconds     
+# * <chr>       <dbl>  <dbl> <drtn>         
+# 1 lm          0.143  0.108   4.782465 secs
+# 2 glmnet      0.810  0.552   3.530440 secs
+# 3 ranger      0.920  0.622  54.875320 secs
+# 4 xgbTree     0.950  0.574 121.705402 secs
 
 table2_tbl <- tibble(
   algo = c("OLS Regression","Elastic Net","Random Forest", 
@@ -172,6 +187,13 @@ table2_tbl <- tibble(
 # 3 Random Forest              69.62 secs  78.12 secs 
 # 4 eXtreme Gradient Boosting 220.58 secs 131.67 secs 
 
+# A tibble: 4 × 3 - CODE ORDER REVERSED!
+# algo                      original    parallelized
+# <chr>                     <drtn>      <drtn>      
+# 1 OLS Regression              5.61 secs   4.78 secs 
+# 2 Elastic Net                21.28 secs   3.53 secs 
+# 3 Random Forest             126.08 secs  54.88 secs 
+# 4 eXtreme Gradient Boosting 341.52 secs 121.71 secs
 
 # A tibble: 4 × 3 - usual order with sys.sleep
 # algo                      original    parallelized
@@ -185,10 +207,10 @@ table2_tbl <- tibble(
 # A tibble: 4 × 3 - order reversed with sys.sleep
 # algo                      original    parallelized
 # <chr>                     <drtn>      <drtn>      
-# 1 OLS Regression              5.50 secs   6.58 secs 
-# 2 Elastic Net                15.07 secs   4.11 secs 
-# 3 Random Forest             122.00 secs  70.30 secs 
-# 4 eXtreme Gradient Boosting 279.46 secs 155.50 secs 
+# 1 OLS Regression              4.52 secs   4.99 secs 
+# 2 Elastic Net                10.60 secs   3.60 secs 
+# 3 Random Forest             118.25 secs  56.03 secs 
+# 4 eXtreme Gradient Boosting 227.67 secs 122.17 secs 
 
 #testing ranger- improved by about 4-8 seconds
 
@@ -269,4 +291,3 @@ table2_tbl <- tibble(
 #WHY
 
 #3. 
-
