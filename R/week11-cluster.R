@@ -86,7 +86,7 @@ ml_results_norm_df <- do.call("rbind", ml_results_norm)
 #per node and advises 1900MB per core. I was having trouble with job submission failures at 
 #128 cores so I opted for 64 cores and applied same logic of using 64-1=63 cores for models
 #to run on
-local_cluster <- makeCluster(63)
+local_cluster <- makeCluster(127)
 registerDoParallel(local_cluster)
 
 ml_results_prll <- mapply(getMLResults, SIMPLIFY = FALSE, ml_model=ml_methods)
@@ -111,13 +111,18 @@ table1_tbl <- ml_results_norm_df  %>%
 
 write_csv(table1_tbl, "out/table3.csv")
 
-
+#table3.csv
+# algo,cv_rsq,ho_rsq
+# OLS Regression,.14,.11
+# Elastic Net,.81,.55
+# Random Forest,.92,.62
+# eXtreme Gradient Boosting,.95,.57
 
 table2_tbl <- tibble(
   algo = c("OLS Regression","Elastic Net","Random Forest", 
            "eXtreme Gradient Boosting"),
   supercomputer = round(ml_results_norm_df$no_seconds,2),
-  supercomputer_63  = round(ml_results_prll_df$no_seconds,2)
+  supercomputer_127  = round(ml_results_prll_df$no_seconds,2)
 )
 
 write_csv(table2_tbl, "out/table4.csv")
@@ -129,13 +134,7 @@ write_csv(table2_tbl, "out/table4.csv")
 # Random Forest,42.5,7.3
 # eXtreme Gradient Boosting,267.07,8.14
 
-# A tibble: 4 × 3 - usual order with sys.sleep
-# algo                      original    parallelized
-# <chr>                     <drtn>      <drtn>      
-# 1 OLS Regression              5.18 secs  10.42 secs 
-# 2 Elastic Net                11.40 secs   6.04 secs 
-# 3 Random Forest              73.97 secs  79.25 secs 
-# 4 eXtreme Gradient Boosting 255.27 secs 124.73 secs  
+
 
 ##Answers to Questions
 #1. The extreme gradient boost model benefited most from moving to the supercomputer, at least
@@ -152,13 +151,13 @@ write_csv(table2_tbl, "out/table4.csv")
 #was most noticeable for random forest and extreme gradient boost models which fell below 10seconds
 #when using 9x the number of cores. 
 
-#3. If your supervisor asked you to pick a model for use in a production model, would you recommend using the supercomputer and why? Consider all four tables when providing an answer.
-#Based on my pick of random forest per its relatively high cross-validated and holdout Rsquared values,
+#3. Based on my pick of random forest per its relatively high cross-validated and holdout Rsquared values,
 #I would recommend use of supercomputer in a production model. On my local machine, the difference between
-#normal and parallelized computational speed was not noticeable but this changed drastically when using the
-#supercomputer. Table 1 recommends random forest or the extreme gradient boost models as the most accurate.
-#Table 2 shows that the latter model is much more computationally expensive even though parallelization reduces
-#the training time. 
+#normal and parallelized computational speed was not noticeable for random forest but this changed drastically
+#when using the supercomputer. Table 1 and 3 recommend random forest or the extreme gradient boost models 
+#as the most accurate.Table 2 shows that the latter model is much more computationally expensive even though
+#parallelization reduces the training time. On the supercomputer, however, parallelizing over 63 cores
+#makes random forest and extreme gradient boost models as speedy as OLS regression.
 
 
 
