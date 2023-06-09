@@ -10,6 +10,7 @@ set.seed(24)
 
 #Note- I use git directly from MSI/PuTTY to push and pull so there was no need to copy this file
 #to a new folder called week11-cluster
+#I also saw that MSI made R/4.3.0 was available but had already installed all packages into 4/4.2.2
 
 #Data Import and Cleaning
 
@@ -86,7 +87,7 @@ ml_results_norm_df <- do.call("rbind", ml_results_norm)
 #per node and advises 1900MB per core. I was having trouble with job submission failures at 
 #128 cores so I opted for 64 cores and applied same logic of using 64-1=63 cores for models
 #to run on
-local_cluster <- makeCluster(127)
+local_cluster <- makeCluster(63)
 registerDoParallel(local_cluster)
 
 ml_results_prll <- mapply(getMLResults, SIMPLIFY = FALSE, ml_model=ml_methods)
@@ -113,16 +114,16 @@ write_csv(table1_tbl, "out/table3.csv")
 
 #table3.csv
 # algo,cv_rsq,ho_rsq
-# OLS Regression,.14,.11
-# Elastic Net,.81,.55
-# Random Forest,.92,.62
-# eXtreme Gradient Boosting,.95,.57
+# OLS Regression,.14,.01
+# Elastic Net,.81,.31
+# Random Forest,.92,.39
+# eXtreme Gradient Boosting,.95,.33
 
 table2_tbl <- tibble(
   algo = c("OLS Regression","Elastic Net","Random Forest", 
            "eXtreme Gradient Boosting"),
   supercomputer = round(ml_results_norm_df$no_seconds,2),
-  supercomputer_127  = round(ml_results_prll_df$no_seconds,2)
+  supercomputer_63  = round(ml_results_prll_df$no_seconds,2)
 )
 
 write_csv(table2_tbl, "out/table4.csv")
