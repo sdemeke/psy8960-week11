@@ -1,5 +1,5 @@
 algo,supercomputer,supercomputer_63
-OLS Regression,6.05,6.97
-Elastic Net,13.65,2.8
-Random Forest,42.5,7.3
-eXtreme Gradient Boosting,267.07,8.14
+OLS Regression,5.7,6.41
+Elastic Net,12.92,2.16
+Random Forest,38.67,6.39
+eXtreme Gradient Boosting,254.92,7.41
