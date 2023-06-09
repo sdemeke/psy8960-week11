@@ -100,37 +100,32 @@ getMLResults <- function(train_data=train_dat, test_data=test_dat, ml_model =  c
 
 ml_methods <- c("lm","glmnet","ranger","xgbTree")  
 
-# 
-# local_cluster <- makeCluster(detectCores()-1)
-# registerDoParallel(local_cluster)
-
-ml_results_prll <- mapply(getMLResults, SIMPLIFY = FALSE, ml_model=ml_methods)
-ml_results_prll_df <- do.call("rbind", ml_results_prll)
-# 
-# stopCluster(local_cluster)
-# registerDoSEQ()
-
-
-
-
-#To run the parallelized version of the ml models, I repeat the same code as above and
-#made no changes to getMLResults(). I just called the parallelizing functions from
-#parallel/doParallel. For this local run, I set the number of clusers to two less than
-#the number of cores on the local machine (in my case, detectCores() returns 8). I leave
-#two out so that other local processes can continue like running my browser to view DataCamp.
-#When I only left one core out, R would crash every now and then or abort entirely. Leaving
-#out two did not hurt the runtime for code and was always successful. I assume this is because
-#my laptop has multiple processes running simultaneously and suddenly giving R access to 7 
-#cores leads to unintended effects and crashes. I could have shut off most other processes
-Sys.sleep(10)
-
+#Normal
 ml_results_norm <- mapply(getMLResults, SIMPLIFY = FALSE, ml_model=ml_methods)
 
 ml_results_norm_df <- do.call("rbind", ml_results_norm)
 
 
 
+#Parallelized
+#To run the parallelized version of the ml models, I repeat the same code as above and
+#made no changes to getMLResults(). I just called the parallelizing functions from
+#parallel/doParallel. For this local run, I set the number of clusers to one less than
+#the number of cores on the local machine (in my case, detectCores() returns 8). I leave
+#one out so that other local processes can continue like running my browser.
+#I also add a brief pause using Sys.sleep() because I noticed that the order in which I ran
+#the normal vs parallelized code chunks changed the runtime results and adding a buffer 
+#helped reduce the imbalance.
+Sys.sleep(5)
 
+local_cluster <- makeCluster(detectCores()-1)
+registerDoParallel(local_cluster)
+
+ml_results_prll <- mapply(getMLResults, SIMPLIFY = FALSE, ml_model=ml_methods)
+ml_results_prll_df <- do.call("rbind", ml_results_prll)
+ 
+stopCluster(local_cluster)
+registerDoSEQ()
 
 
 #Publication
@@ -148,30 +143,14 @@ table1_tbl <- ml_results_norm_df  %>%
   mutate(across(ends_with("_rsq"),
                 \(x) gsub("0\\.",".",
                           format(round(x, digits=2), nsmall = 2)) ) )
-# A tibble: 4 × 3
+
+# # A tibble: 4 × 3
 # algo                      cv_rsq ho_rsq
 # <chr>                     <chr>  <chr> 
-# 1 OLS Regression            .14    .11   
-# 2 Elastic Net               .83    .55   
-# 3 Random Forest             .91    .63   
-# 4 eXtreme Gradient Boosting .97    .57 
-
-#prll results 7 cores
-# # A tibble: 4 × 4
-# model_name cv_rsq ho_rsq no_seconds     
-# * <chr>       <dbl>  <dbl> <drtn>         
-# 1 lm          0.143  0.108  10.988380 secs
-# 2 glmnet      0.810  0.552   5.646603 secs
-# 3 ranger      0.920  0.622  78.120190 secs
-# 4 xgbTree     0.950  0.574 131.665324 secs
-
-# A tibble: 4 × 4 - same but ran this first
-# model_name cv_rsq ho_rsq no_seconds     
-# * <chr>       <dbl>  <dbl> <drtn>         
-# 1 lm          0.143  0.108   4.782465 secs
-# 2 glmnet      0.810  0.552   3.530440 secs
-# 3 ranger      0.920  0.622  54.875320 secs
-# 4 xgbTree     0.950  0.574 121.705402 secs
+# 1 OLS Regression            .14    .01   
+# 2 Elastic Net               .81    .31   
+# 3 Random Forest             .92    .39   
+# 4 eXtreme Gradient Boosting .95    .33 
 
 table2_tbl <- tibble(
   algo = c("OLS Regression","Elastic Net","Random Forest", 
@@ -179,22 +158,6 @@ table2_tbl <- tibble(
   original = round(ml_results_norm_df$no_seconds,2),
   parallelized = round(ml_results_prll_df$no_seconds,2)
 )
-
-# # A tibble: 4 × 3
-# algo                      original    parallelized
-# <chr>                     <drtn>      <drtn>      
-# 1 OLS Regression              4.45 secs  10.99 secs 
-# 2 Elastic Net                10.29 secs   5.65 secs 
-# 3 Random Forest              69.62 secs  78.12 secs 
-# 4 eXtreme Gradient Boosting 220.58 secs 131.67 secs 
-
-# A tibble: 4 × 3 - CODE ORDER REVERSED!
-# algo                      original    parallelized
-# <chr>                     <drtn>      <drtn>      
-# 1 OLS Regression              5.61 secs   4.78 secs 
-# 2 Elastic Net                21.28 secs   3.53 secs 
-# 3 Random Forest             126.08 secs  54.88 secs 
-# 4 eXtreme Gradient Boosting 341.52 secs 121.71 secs
 
 # A tibble: 4 × 3 - usual order with sys.sleep
 # algo                      original    parallelized
@@ -205,90 +168,27 @@ table2_tbl <- tibble(
 # 4 eXtreme Gradient Boosting 255.27 secs 124.73 secs 
 
 
-# A tibble: 4 × 3 - order reversed with sys.sleep
-# algo                      original    parallelized
-# <chr>                     <drtn>      <drtn>      
-# 1 OLS Regression              4.52 secs   4.99 secs 
-# 2 Elastic Net                10.60 secs   3.60 secs 
-# 3 Random Forest             118.25 secs  56.03 secs 
-# 4 eXtreme Gradient Boosting 227.67 secs 122.17 secs 
-
-#testing ranger- improved by about 4-8 seconds
-
-# start <- Sys.time()
-# 
-# model <- train(
-#   workhours~.,
-#   data = train_dat, 
-#   metric = "Rsquared",
-#   method = "ranger",
-#   preProcess = c("center","scale","nzv","medianImpute"), 
-#   na.action = na.pass,
-#   trControl = myControl
-# )
-# 
-# end <- Sys.time()
-# 
-# predicted <- predict(model, test_dat, na.action = na.pass)
-# 
-# results <- tibble(
-#   model_name = "rf",
-#   cv_rsq = max( model[["results"]][["Rsquared"]]),
-#   ho_rsq = cor(predicted, test_dat$workhours),
-#   no_seconds = difftime(end,start,units="secs")
-# )
-# 
-# 
-# 
-# local_cluster <- makeCluster(detectCores()-1)
-# registerDoParallel(local_cluster)
-# 
-# start <- Sys.time()
-# 
-# model <- train(
-#   workhours~.,
-#   data = train_dat, 
-#   metric = "Rsquared",
-#   method = "ranger",
-#   preProcess = c("center","scale","nzv","medianImpute"), 
-#   na.action = na.pass,
-#   trControl = myControl
-# )
-# 
-# end <- Sys.time()
-# 
-# 
-# stopCluster(local_cluster)
-# registerDoSEQ()
-# 
-# 
-# predicted <- predict(model, test_dat, na.action = na.pass)
-# 
-# results_p <- tibble(
-#   model_name = "rf",
-#   cv_rsq = max( model[["results"]][["Rsquared"]]),
-#   ho_rsq = cor(predicted, test_dat$workhours),
-#   no_seconds = difftime(end,start,units="secs")
-# )
-# 
-
-
-
-
 ##Answers to Questions
 
 #1. The elastic net and extreme gradient boost models both improved ~40% in decreased runtime. Random forest
-#increased in time by ~10secs. The OLS regression model increased in runtime by more than double. Parallelization is
-#a trade-off for overhead processing and while 2 complex models benefited from parallelization, the simple 
+#increased in time by ~5secs. The OLS regression model increased in runtime by about double. Parallelization is
+#a trade-off for overhead processing and while 2 of the complex models benefited from parallelization, the simple 
 #OLS regression did not and neither did random forest. For the OLS model, the actual model code is already quick so
 #when I add the add the burden of creating multiple clusters, the computation involved in managing the different 
-#threads ends up increasing runtime. 
-#For elastic net and xgb, however, the sequential runtime for each model run is more computationally expensive and
-#the added overhead of parallelizing does not counteract the increase in efficiency gained by running the models
-#over more clusters.
+#threads ends up increasing runtime. For elastic net and xgb, however, the sequential runtime for each model run
+#is more computationally expensive and the added overhead of parallelizing does not counteract the increase in 
+#efficiency gained by running the models over more clusters. I did not notice any substantial change in runtime 
+#for random forest during my tests (sometimes slower, sometimes faster) but this result may differ with larger
+#datasets such that parallelization improves the speed.
 
 #2. The fastest parallelization model was ~6 seconds for elastic net while the slowest parallelized model was the
-#extreme gradient boost model at 132 seconds, giving a difference of about 126 seconds.
-#WHY
+#extreme gradient boost model at 125 seconds, giving a difference of about 2 minutes. This may be due to the 
+#different contingencies between elastic net and extreme gradient boosting models. For elastic net, parallelization
+#can effectively run independently across cores. For the latter, however, the model includes processes which require
+#communication between the results on different cores. This additional burden may produce a threshold on how fast
+#the parallelized process can be.
 
-#3. 
+#3. I would recommend the Random Forest model. Computationally, this model was faster than the parallelized extreme 
+#gradient boosting when run without parallelization and had the next highest cross-validated and the highest holdout
+#Rsquared among all models. While Elastic net was still much faster, it may not be advisable to base judgement entirely
+#on only runtime as I also noticed that my own local machine was running random forest slower than other laptops.

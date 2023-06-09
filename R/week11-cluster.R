@@ -63,7 +63,7 @@ getMLResults <- function(train_data=train_dat, test_data=test_dat, ml_model =  c
   results <- tibble(
     model_name = ml_model,
     cv_rsq = max( model[["results"]][["Rsquared"]]),
-    ho_rsq = cor(predicted, test_data$workhours),
+    ho_rsq = cor(predicted, test_data$workhours)^2,
     no_seconds = difftime(end,start,units="secs")
   )
   
@@ -111,12 +111,7 @@ table1_tbl <- ml_results_norm_df  %>%
 
 write_csv(table1_tbl, "out/table3.csv")
 
-#table3.csv 
-# algo,cv_rsq,ho_rsq
-# OLS Regression,.14,.11
-# Elastic Net,.81,.55
-# Random Forest,.92,.62
-# eXtreme Gradient Boosting,.95,.57
+
 
 table2_tbl <- tibble(
   algo = c("OLS Regression","Elastic Net","Random Forest", 
@@ -134,22 +129,36 @@ write_csv(table2_tbl, "out/table4.csv")
 # Random Forest,42.5,7.3
 # eXtreme Gradient Boosting,267.07,8.14
 
-# # A tibble: 4 × 3
+# A tibble: 4 × 3 - usual order with sys.sleep
 # algo                      original    parallelized
 # <chr>                     <drtn>      <drtn>      
-# 1 OLS Regression              4.49 secs   7.21 secs 
-# 2 Elastic Net                 9.90 secs   5.51 secs 
-# 3 Random Forest              66.81 secs  77.74 secs 
-# 4 eXtreme Gradient Boosting 202.58 secs 133.63 secs 
+# 1 OLS Regression              5.18 secs  10.42 secs 
+# 2 Elastic Net                11.40 secs   6.04 secs 
+# 3 Random Forest              73.97 secs  79.25 secs 
+# 4 eXtreme Gradient Boosting 255.27 secs 124.73 secs  
 
 ##Answers to Questions
-#1. Which models benefited most from moving to the supercomputer and why?
-#
+#1. The extreme gradient boost model benefited most from moving to the supercomputer, at least
+#for the parallelized runs. On my local machine, parallelization reduced runtime from ~255 to ~125
+#seconds. On the supercomputer, using 63 cores, this was further reduced to just 8 seconds. The
+#number of cores used between my local machine and the supercomputer increased 9 fold (from 7
+#to 63) which helps explain this dramatic increase in speed of the parallelized process. The
+#changes for random forest were similar but slightly less dramatic as the starting point for 
+#speed was not as slow as for xgb. These two models benefited most from moving to supercomputer.
 
 #2. What is the relationship between time and the number of cores used?
+#On my local machine, I used maximum 7 cores. On the supercomputer, I set models to train on 63 cores.
+#As the number of cores used increased, the time to train the four models decreased and this decrease
+#was most noticeable for random forest and extreme gradient boost models which fell below 10seconds
+#when using 9x the number of cores. 
 
 #3. If your supervisor asked you to pick a model for use in a production model, would you recommend using the supercomputer and why? Consider all four tables when providing an answer.
-
+#Based on my pick of random forest per its relatively high cross-validated and holdout Rsquared values,
+#I would recommend use of supercomputer in a production model. On my local machine, the difference between
+#normal and parallelized computational speed was not noticeable but this changed drastically when using the
+#supercomputer. Table 1 recommends random forest or the extreme gradient boost models as the most accurate.
+#Table 2 shows that the latter model is much more computationally expensive even though parallelization reduces
+#the training time. 
 
 
 
