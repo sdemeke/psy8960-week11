@@ -81,11 +81,12 @@ getMLResults <- function(train_data=train_dat, test_data=test_dat, ml_model =  c
   results <- tibble(
     model_name = ml_model,
     cv_rsq = max( model[["results"]][["Rsquared"]]),
-    ho_rsq = cor(predicted, test_data$workhours),
+    ho_rsq = cor(predicted, test_data$workhours)^2,
     no_seconds = difftime(end,start,units="secs")
   )
   
   return(results)
+  
   
 }
 
@@ -99,15 +100,15 @@ getMLResults <- function(train_data=train_dat, test_data=test_dat, ml_model =  c
 
 ml_methods <- c("lm","glmnet","ranger","xgbTree")  
 
-
-local_cluster <- makeCluster(detectCores()-1)
-registerDoParallel(local_cluster)
+# 
+# local_cluster <- makeCluster(detectCores()-1)
+# registerDoParallel(local_cluster)
 
 ml_results_prll <- mapply(getMLResults, SIMPLIFY = FALSE, ml_model=ml_methods)
 ml_results_prll_df <- do.call("rbind", ml_results_prll)
-
-stopCluster(local_cluster)
-registerDoSEQ()
+# 
+# stopCluster(local_cluster)
+# registerDoSEQ()
 
 
 
