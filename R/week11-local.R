@@ -42,6 +42,7 @@ gss_tbl %>%
 #I also added Sys.time() lines to capture the time it takes for caret::train() to run for each 
 #model. The results tibble also includes a new column to store this time variable using the 
 #difftime() function to set fixed seconds unit.
+#I fixed error in calculating holdout Rsquared (project 10 only calculated r not r^2)
 
 
 no_folds <- 10
@@ -95,8 +96,8 @@ getMLResults <- function(train_data=train_dat, test_data=test_dat, ml_model =  c
 #each. After comparing the runtime of different approaches, I chose to use mapply() for this 
 #purpose instead of the for loop. Mapply() was faster even when I fixed my fatal error in 
 #project 10 of growing an empty list with no pre-defined length. 
-#mapply() also returns a list/matrix object if SIMPLIFY=TRUE. To return a list that I can rbind
-#into a dataframe, I set SIMPLIFY=FALSE and call rbind to collapse the list to a dataframe.
+#mapply() returns a list/matrix object if SIMPLIFY=TRUE. To return a list that I can rbind
+#into a dataframe, I set SIMPLIFY=FALSE and call rbind
 
 ml_methods <- c("lm","glmnet","ranger","xgbTree")  
 
@@ -179,16 +180,18 @@ table2_tbl <- tibble(
 #is more computationally expensive and the added overhead of parallelizing does not counteract the increase in 
 #efficiency gained by running the models over more clusters. I did not notice any substantial change in runtime 
 #for random forest during my tests (sometimes slower, sometimes faster) but this result may differ with larger
-#datasets such that parallelization improves the speed.
+#datasets such that parallelization improves the speed if we were working with larger N/k.
 
 #2. The fastest parallelization model was ~6 seconds for elastic net while the slowest parallelized model was the
 #extreme gradient boost model at 125 seconds, giving a difference of about 2 minutes. This may be due to the 
 #different contingencies between elastic net and extreme gradient boosting models. For elastic net, parallelization
 #can effectively run independently across cores. For the latter, however, the model includes processes which require
 #communication between the results on different cores. This additional burden may produce a threshold on how fast
-#the parallelized process can be.
+#the parallelized process can be in comparison to elastic net.
 
 #3. I would recommend the Random Forest model. Computationally, this model was faster than the parallelized extreme 
 #gradient boosting when run without parallelization and had the next highest cross-validated and the highest holdout
 #Rsquared among all models. While Elastic net was still much faster, it may not be advisable to base judgement entirely
-#on only runtime as I also noticed that my own local machine was running random forest slower than other laptops.
+#on only runtime as I also noticed that my own local machine was running random forest slower than other machines
+#and a more powerful machine could decrease that runtime while still benefiting from the increased accuracy
+#of random forest.
