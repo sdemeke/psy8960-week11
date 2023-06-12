@@ -146,8 +146,7 @@ write_csv(table2_tbl, "out/table4.csv")
 #changes for random forest were similar but slightly less dramatic as the starting point for 
 #speed was not as slow as for xgb. These two models benefited most from moving to supercomputer.
 
-#2. What is the relationship between time and the number of cores used?
-#On my local machine, I used maximum 7 cores. On the supercomputer, I set models to train on 63 cores.
+#2. On my local machine, I used maximum 7 cores. On the supercomputer, I set models to train on 63 cores.
 #As the number of cores used increased, the time to train the four models decreased and this decrease
 #was most noticeable for random forest and extreme gradient boost models which fell below 10seconds
 #when using 9x the number of cores. 
