@@ -97,14 +97,14 @@ getMLResults <- function(train_data=train_dat, test_data=test_dat, ml_model =  c
 #purpose instead of the for loop. Mapply() was faster even when I fixed my fatal error in 
 #project 10 of growing an empty list with no pre-defined length. 
 #mapply() returns a list/matrix object if SIMPLIFY=TRUE. To return a list that I can rbind
-#into a dataframe, I set SIMPLIFY=FALSE and call rbind
+#into a dataframe, I set SIMPLIFY=FALSE and call bind_rows()
 
 ml_methods <- c("lm","glmnet","ranger","xgbTree")  
 
 #Normal
 ml_results_norm <- mapply(getMLResults, SIMPLIFY = FALSE, ml_model=ml_methods)
 
-ml_results_norm_df <- do.call("rbind", ml_results_norm)
+ml_results_norm_df <- bind_rows(ml_results_norm)
 
 
 
@@ -123,7 +123,7 @@ local_cluster <- makeCluster(detectCores()-1)
 registerDoParallel(local_cluster)
 
 ml_results_prll <- mapply(getMLResults, SIMPLIFY = FALSE, ml_model=ml_methods)
-ml_results_prll_df <- do.call("rbind", ml_results_prll)
+ml_results_prll_df <- bind_rows(ml_results_prll)
 
 stopCluster(local_cluster)
 registerDoSEQ()

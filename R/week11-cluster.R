@@ -79,7 +79,7 @@ ml_methods <- c("lm","glmnet","ranger","xgbTree")
 #Normal - no changes made
 ml_results_norm <- mapply(getMLResults, SIMPLIFY = FALSE, ml_model=ml_methods)
 
-ml_results_norm_df <- do.call("rbind", ml_results_norm)
+ml_results_norm_df <- bind_rows(ml_results_norm)
 
 
 #Paralleized
@@ -91,7 +91,7 @@ local_cluster <- makeCluster(63)
 registerDoParallel(local_cluster)
 
 ml_results_prll <- mapply(getMLResults, SIMPLIFY = FALSE, ml_model=ml_methods)
-ml_results_prll_df <- do.call("rbind", ml_results_prll)
+ml_results_prll_df <- bind_rows(ml_results_prll)
 
 stopCluster(local_cluster)
 registerDoSEQ()
